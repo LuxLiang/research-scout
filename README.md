@@ -1,7 +1,7 @@
 # Research Scout
 
 <p align="center">
-  <img src="assets/research-crystallization.webp?v=2x-lossless" alt="Research Scout: flowing evidence glyphs converge into a research note with a smooth blue curve, on a transparent background." width="960" />
+  <img src="assets/research-crystallization.webp?v=harness-green" alt="Research Scout: flowing evidence glyphs converge into a research note with a smooth deep-green curve, on a transparent background." width="960" />
 </p>
 
 <p align="center"><em>From scattered evidence to a clearer research picture.</em></p>

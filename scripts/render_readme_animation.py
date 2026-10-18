@@ -13,10 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 WIDTH, HEIGHT, SCALE = 960, 500, 3
 OUTPUT_SCALE = 2
 FRAMES, DURATION = 300, 40  # 25 fps, 12 seconds, seamless resting endpoints.
-BLUE = (105, 130, 225)
-TEAL = (69, 163, 158)
-INK = (111, 123, 145)
-PAPER_INK = (54, 67, 94)
+# Shared with Research Harness: #247B6B / #6E7777 / #222D32.
+GREEN = (36, 123, 107)
+INK = (110, 119, 119)
+PAPER_INK = (34, 45, 50)
 FONTS = Path('/usr/share/fonts/truetype/dejavu')
 
 
@@ -81,7 +81,7 @@ class Painter:
             lambda d, c, ox, oy: d.text((x-ox, y-oy), value, font=face, fill=c,
                                         anchor=anchor), color, alpha)
 
-    def line(self, points, color=BLUE, alpha=1, width=1):
+    def line(self, points, color=GREEN, alpha=1, width=1):
         points = [(x*SCALE, y*SCALE) for x, y in points]
         pixels = max(1, round(width*SCALE))
         xs, ys = zip(*points)
@@ -90,20 +90,20 @@ class Painter:
             [(x-ox, y-oy) for x, y in points], fill=c, width=pixels, joint='curve'),
             color, alpha)
 
-    def rect(self, box, radius=0, color=BLUE, alpha=1, outline=False, width=1):
+    def rect(self, box, radius=0, color=GREEN, alpha=1, outline=False, width=1):
         box = tuple(v*SCALE for v in box)
         self.paint(box, lambda d, c, ox, oy: d.rounded_rectangle(
             (box[0]-ox, box[1]-oy, box[2]-ox, box[3]-oy), radius=radius*SCALE,
             fill=None if outline else c, outline=c if outline else None,
             width=max(1, round(width*SCALE))), color, alpha)
 
-    def dot(self, x, y, radius, color=BLUE, alpha=1):
+    def dot(self, x, y, radius, color=GREEN, alpha=1):
         box = ((x-radius)*SCALE, (y-radius)*SCALE,
                (x+radius)*SCALE, (y+radius)*SCALE)
         self.paint(box, lambda d, c, ox, oy: d.ellipse(
             (box[0]-ox, box[1]-oy, box[2]-ox, box[3]-oy), fill=c), color, alpha)
 
-    def polygon(self, points, color=BLUE, alpha=1):
+    def polygon(self, points, color=GREEN, alpha=1):
         points = [(x*SCALE, y*SCALE) for x, y in points]
         xs, ys = zip(*points)
         self.paint((min(xs), min(ys), max(xs), max(ys)),
@@ -114,20 +114,20 @@ class Painter:
 def background():
     image = Image.new('RGBA', (WIDTH*SCALE, HEIGHT*SCALE))
     p = Painter(image)
-    p.line([(54, 102), (87, 102)], BLUE, .8, 2)
-    p.text((100, 95), 'RESEARCH SCOUT', MONO, BLUE)
-    p.text((50, 130), 'Research', SERIF, BLUE)
-    p.text((50, 196), 'Scout.', SERIF, BLUE)
+    p.line([(54, 102), (87, 102)], GREEN, .8, 2)
+    p.text((100, 95), 'RESEARCH SCOUT', MONO, GREEN)
+    p.text((50, 130), 'Research', SERIF, GREEN)
+    p.text((50, 196), 'Scout.', SERIF, GREEN)
     p.text((55, 285), 'Follow the signal.', SANS, INK)
     p.text((55, 307), 'Make room for discovery.', SANS, INK, .95)
     for i, (x, label) in enumerate([(55, 'EVIDENCE'), (165, 'CONNECT'), (268, 'INSIGHT')]):
-        p.dot(x+3, 371, 2, TEAL if i == 2 else BLUE, .9)
+        p.dot(x+3, 371, 2, GREEN, .9)
         p.text((x+14, 365), label, MONO, INK, .9)
         if i < 2:
             p.line([(x+83, 371), (x+98, 371)], INK, .3)
     # A sparse constellation, with empty transparent space around the artwork.
     for x, y in [(488, 108), (846, 82), (899, 211), (850, 392), (514, 403)]:
-        p.dot(x, y, 1.5, BLUE, .22)
+        p.dot(x, y, 1.5, GREEN, .22)
     return image
 
 
@@ -147,8 +147,8 @@ def render(frame):
         if .02 < progress < .96:
             for lag in [0.014, .028]:
                 tx, ty = bezier(a, b, c, end, max(0, progress-lag))
-                p.dot(tx, ty, 1, TEAL if teal else BLUE, alpha*.16)
-        p.text((x, y), char, GLYPH, TEAL if teal else INK, alpha, 'mm')
+                p.dot(tx, ty, 1, GREEN, alpha*.16)
+        p.text((x, y), char, GLYPH, GREEN if teal else INK, alpha, 'mm')
 
     card = ease(t, .32, .52) * scene
     dy = 12*(1-ease(t, .32, .59))
@@ -157,9 +157,9 @@ def render(frame):
     for spread, opacity in [(9, .012), (6, .018), (3, .028)]:
         p.rect((x0-spread, y0+5, x1+spread, y1+spread+5), 16+spread,
                PAPER_INK, card*opacity)
-    p.rect((x0, y0, x1, y1), 13, (253, 254, 255), card*.98)
-    p.rect((x0, y0, x1, y1), 13, BLUE, card*.45, outline=True, width=1)
-    p.rect((x0+22, y0+24, x0+25, y0+42), 1.5, TEAL, card)
+    p.rect((x0, y0, x1, y1), 13, (250, 252, 249), card*.98)
+    p.rect((x0, y0, x1, y1), 13, GREEN, card*.45, outline=True, width=1)
+    p.rect((x0+22, y0+24, x0+25, y0+42), 1.5, GREEN, card)
     p.text((x0+35, y0+27), 'RESEARCH NOTE / 001', MONO, PAPER_INK, card*.9)
     reveal = ease(t, .43, .61)*card
     p.text((x0+22, y0+60), 'A clearer view.', SMALL_SERIF, PAPER_INK, reveal)
@@ -171,10 +171,10 @@ def render(frame):
     # The chart appears as a continuous curve with a soft confidence ribbon.
     chart = ease(t, .55, .76)
     chart_alpha = card*ease(t, .51, .60)
-    p.rect((585, 231+dy, 795, 326+dy), 7, (236, 241, 251), chart_alpha*.8)
+    p.rect((585, 231+dy, 795, 326+dy), 7, (237, 242, 237), chart_alpha*.8)
     for row in range(3):
         y = 249+row*28+dy
-        p.line([(598, y), (783, y)], BLUE, chart_alpha*.10, .65)
+        p.line([(598, y), (783, y)], GREEN, chart_alpha*.10, .65)
     pts = []
     for i in range(int(chart*120)+1):
         u = i/120
@@ -183,18 +183,18 @@ def render(frame):
         pts.append((x, y))
     if len(pts) > 1:
         polygon = [(x, y-5) for x, y in pts] + [(x, y+5) for x, y in reversed(pts)]
-        p.polygon(polygon, BLUE, chart_alpha*.09)
-        p.line(pts, BLUE, chart_alpha, 2.1)
+        p.polygon(polygon, GREEN, chart_alpha*.09)
+        p.line(pts, GREEN, chart_alpha, 2.1)
         x, y = pts[-1]
-        p.dot(x, y, 5, BLUE, chart_alpha*.12)
-        p.dot(x, y, 2.4, BLUE, chart_alpha)
+        p.dot(x, y, 5, GREEN, chart_alpha*.12)
+        p.dot(x, y, 2.4, GREEN, chart_alpha)
     for i, length in enumerate([183, 151]):
         u = ease(t, .68+i*.025, .79+i*.025)
         p.rect((588, 344+i*10+dy, 588+max(.01,length*u), 346+i*10+dy), 1,
                INK, card*.42*u)
     done = card*ease(t, .75, .82)
-    p.dot(591, 384+dy, 2.3, TEAL, done)
-    p.text((601, 378+dy), 'EVIDENCE, CONNECTED.', MONO, TEAL, done)
+    p.dot(591, 384+dy, 2.3, GREEN, done)
+    p.text((601, 378+dy), 'EVIDENCE, CONNECTED.', MONO, GREEN, done)
     return image.resize((WIDTH*OUTPUT_SCALE, HEIGHT*OUTPUT_SCALE), Image.Resampling.LANCZOS)
 
 

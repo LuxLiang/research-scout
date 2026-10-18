@@ -1,7 +1,7 @@
 # Research Scout
 
 <p align="center">
-  <img src="assets/research-crystallization.webp" alt="Research Scout: flowing evidence glyphs converge into a research note with a smooth blue curve, on a transparent background." width="960" />
+  <img src="assets/research-crystallization.webp?v=2x-lossless" alt="Research Scout: flowing evidence glyphs converge into a research note with a smooth blue curve, on a transparent background." width="960" />
 </p>
 
 <p align="center"><em>From scattered evidence to a clearer research picture.</em></p>
@@ -85,6 +85,8 @@ correctness verification belong to reviewers and downstream research workflows.
 
 An original transparent WebP animation: curved evidence trajectories, a research
 card and a continuous loss curve, rendered at 25 fps with a seamless resting loop.
+The 1920×1000 lossless asset displays at 960px width for sharp high-DPI text and
+fine lines, preserving full alpha transparency.
 Concept inspired by [Autonomous Machine Learning Research](https://automlr.com/).
 [Static transparent preview](assets/research-crystallization.png).
 

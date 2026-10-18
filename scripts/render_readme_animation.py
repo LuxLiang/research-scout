@@ -1,7 +1,8 @@
 """Original transparent research-crystallization animation for GitHub README.
 
-Render at 2x resolution, then downsample to preserve subpixel movement and
-soft alpha edges. Animated WebP preserves full transparency unlike GIF.
+Render at 3x logical resolution and export at 2x pixel density for a sharp
+960px-wide README on Retina screens. Lossless animated WebP preserves fine
+letterforms, subpixel alpha and line colors without YUV compression artifacts.
 """
 from pathlib import Path
 import math
@@ -9,7 +10,8 @@ import random
 from PIL import Image, ImageDraw, ImageFont, features
 
 ROOT = Path(__file__).resolve().parents[1]
-WIDTH, HEIGHT, SCALE = 960, 500, 2
+WIDTH, HEIGHT, SCALE = 960, 500, 3
+OUTPUT_SCALE = 2
 FRAMES, DURATION = 300, 40  # 25 fps, 12 seconds, seamless resting endpoints.
 BLUE = (105, 130, 225)
 TEAL = (69, 163, 158)
@@ -22,12 +24,11 @@ def font(name, size):
     return ImageFont.truetype(str(FONTS / name), round(size * SCALE))
 
 
-MONO = font('DejaVuSansMono.ttf', 10)
+MONO = font('DejaVuSansMono.ttf', 11)
 GLYPH = font('DejaVuSansMono.ttf', 15)
 SERIF = font('DejaVuSerif.ttf', 55)
 SMALL_SERIF = font('DejaVuSerif.ttf', 22)
 SANS = font('DejaVuSans.ttf', 13)
-TINY = font('DejaVuSans.ttf', 10)
 
 
 def ease(t, start, end):
@@ -55,33 +56,59 @@ for i in range(68):
 
 
 class Painter:
+    """Composite only each primitive's bounds, keeping high-DPI rendering cheap."""
     def __init__(self, image):
         self.image = image
 
-    def draw(self, callback, color, alpha=1):
+    def paint(self, bounds, callback, color, alpha):
         if alpha <= 0:
             return
-        layer = Image.new('RGBA', self.image.size)
-        callback(ImageDraw.Draw(layer), (*color, round(max(0, min(1, alpha))*255)))
-        self.image.alpha_composite(layer)
+        left = max(0, math.floor(bounds[0])-2)
+        top = max(0, math.floor(bounds[1])-2)
+        right = min(self.image.width, math.ceil(bounds[2])+3)
+        bottom = min(self.image.height, math.ceil(bounds[3])+3)
+        if right <= left or bottom <= top:
+            return
+        layer = Image.new('RGBA', (right-left, bottom-top))
+        fill = (*color, round(max(0, min(1, alpha))*255))
+        callback(ImageDraw.Draw(layer), fill, left, top)
+        self.image.alpha_composite(layer, (left, top))
 
     def text(self, xy, value, face, color=INK, alpha=1, anchor=None):
-        xy = tuple(v*SCALE for v in xy)
-        self.draw(lambda d, c: d.text(xy, value, font=face, fill=c, anchor=anchor), color, alpha)
+        x, y = (v*SCALE for v in xy)
+        box = face.getbbox(value, anchor=anchor)
+        self.paint((x+box[0], y+box[1], x+box[2], y+box[3]),
+            lambda d, c, ox, oy: d.text((x-ox, y-oy), value, font=face, fill=c,
+                                        anchor=anchor), color, alpha)
 
     def line(self, points, color=BLUE, alpha=1, width=1):
         points = [(x*SCALE, y*SCALE) for x, y in points]
-        self.draw(lambda d, c: d.line(points, fill=c, width=max(1, round(width*SCALE)), joint='curve'), color, alpha)
+        pixels = max(1, round(width*SCALE))
+        xs, ys = zip(*points)
+        bounds = (min(xs)-pixels, min(ys)-pixels, max(xs)+pixels, max(ys)+pixels)
+        self.paint(bounds, lambda d, c, ox, oy: d.line(
+            [(x-ox, y-oy) for x, y in points], fill=c, width=pixels, joint='curve'),
+            color, alpha)
 
     def rect(self, box, radius=0, color=BLUE, alpha=1, outline=False, width=1):
         box = tuple(v*SCALE for v in box)
-        self.draw(lambda d, c: d.rounded_rectangle(box, radius=radius*SCALE,
-                  fill=None if outline else c, outline=c if outline else None,
-                  width=max(1, round(width*SCALE))), color, alpha)
+        self.paint(box, lambda d, c, ox, oy: d.rounded_rectangle(
+            (box[0]-ox, box[1]-oy, box[2]-ox, box[3]-oy), radius=radius*SCALE,
+            fill=None if outline else c, outline=c if outline else None,
+            width=max(1, round(width*SCALE))), color, alpha)
 
     def dot(self, x, y, radius, color=BLUE, alpha=1):
-        self.draw(lambda d, c: d.ellipse(((x-radius)*SCALE, (y-radius)*SCALE,
-                  (x+radius)*SCALE, (y+radius)*SCALE), fill=c), color, alpha)
+        box = ((x-radius)*SCALE, (y-radius)*SCALE,
+               (x+radius)*SCALE, (y+radius)*SCALE)
+        self.paint(box, lambda d, c, ox, oy: d.ellipse(
+            (box[0]-ox, box[1]-oy, box[2]-ox, box[3]-oy), fill=c), color, alpha)
+
+    def polygon(self, points, color=BLUE, alpha=1):
+        points = [(x*SCALE, y*SCALE) for x, y in points]
+        xs, ys = zip(*points)
+        self.paint((min(xs), min(ys), max(xs), max(ys)),
+            lambda d, c, ox, oy: d.polygon([(x-ox, y-oy) for x, y in points], fill=c),
+            color, alpha)
 
 
 def background():
@@ -92,7 +119,7 @@ def background():
     p.text((50, 130), 'Research', SERIF, BLUE)
     p.text((50, 196), 'Scout.', SERIF, BLUE)
     p.text((55, 285), 'Follow the signal.', SANS, INK)
-    p.text((55, 307), 'Make room for discovery.', SANS, INK, .75)
+    p.text((55, 307), 'Make room for discovery.', SANS, INK, .95)
     for i, (x, label) in enumerate([(55, 'EVIDENCE'), (165, 'CONNECT'), (268, 'INSIGHT')]):
         p.dot(x+3, 371, 2, TEAL if i == 2 else BLUE, .9)
         p.text((x+14, 365), label, MONO, INK, .9)
@@ -131,15 +158,15 @@ def render(frame):
         p.rect((x0-spread, y0+5, x1+spread, y1+spread+5), 16+spread,
                PAPER_INK, card*opacity)
     p.rect((x0, y0, x1, y1), 13, (253, 254, 255), card*.98)
-    p.rect((x0, y0, x1, y1), 13, BLUE, card*.28, outline=True, width=.8)
+    p.rect((x0, y0, x1, y1), 13, BLUE, card*.45, outline=True, width=1)
     p.rect((x0+22, y0+24, x0+25, y0+42), 1.5, TEAL, card)
-    p.text((x0+35, y0+27), 'RESEARCH NOTE / 001', MONO, PAPER_INK, card*.65)
+    p.text((x0+35, y0+27), 'RESEARCH NOTE / 001', MONO, PAPER_INK, card*.9)
     reveal = ease(t, .43, .61)*card
     p.text((x0+22, y0+60), 'A clearer view.', SMALL_SERIF, PAPER_INK, reveal)
     for i, length in enumerate([188, 160, 177]):
         u = ease(t, .47+i*.023, .60+i*.023)
         p.rect((x0+23, y0+105+i*10, x0+23+max(.01, length*u), y0+107+i*10),
-               1, INK, card*.28*u)
+               1, INK, card*.42*u)
 
     # The chart appears as a continuous curve with a soft confidence ribbon.
     chart = ease(t, .55, .76)
@@ -156,19 +183,19 @@ def render(frame):
         pts.append((x, y))
     if len(pts) > 1:
         polygon = [(x, y-5) for x, y in pts] + [(x, y+5) for x, y in reversed(pts)]
-        p.draw(lambda d, c: d.polygon([(x*SCALE,y*SCALE) for x,y in polygon], fill=c), BLUE, chart_alpha*.09)
-        p.line(pts, BLUE, chart_alpha, 1.9)
+        p.polygon(polygon, BLUE, chart_alpha*.09)
+        p.line(pts, BLUE, chart_alpha, 2.1)
         x, y = pts[-1]
         p.dot(x, y, 5, BLUE, chart_alpha*.12)
         p.dot(x, y, 2.4, BLUE, chart_alpha)
     for i, length in enumerate([183, 151]):
         u = ease(t, .68+i*.025, .79+i*.025)
         p.rect((588, 344+i*10+dy, 588+max(.01,length*u), 346+i*10+dy), 1,
-               INK, card*.28*u)
+               INK, card*.42*u)
     done = card*ease(t, .75, .82)
     p.dot(591, 384+dy, 2.3, TEAL, done)
     p.text((601, 378+dy), 'EVIDENCE, CONNECTED.', MONO, TEAL, done)
-    return image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+    return image.resize((WIDTH*OUTPUT_SCALE, HEIGHT*OUTPUT_SCALE), Image.Resampling.LANCZOS)
 
 
 def main():
@@ -183,10 +210,10 @@ def main():
             print(f'Rendered {i}/{FRAMES}', flush=True)
     frames[0].save(output/'research-crystallization.webp', save_all=True,
                    append_images=frames[1:], duration=DURATION, loop=0,
-                   lossless=False, quality=88, method=5, allow_mixed=True,
+                   lossless=True, quality=100, method=5, allow_mixed=False,
                    minimize_size=True)
     render(250).save(output/'research-crystallization.png')
-    print('Saved transparent animated WebP and PNG.', flush=True)
+    print(f'Saved {WIDTH*OUTPUT_SCALE}×{HEIGHT*OUTPUT_SCALE} lossless transparent WebP and PNG.', flush=True)
 
 
 if __name__ == '__main__':

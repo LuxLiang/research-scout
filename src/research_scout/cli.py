@@ -315,6 +315,21 @@ def eval(ctx: typer.Context):
 
 @app.command()
 @guarded
+def related_work(ctx: typer.Context,
+                 refresh: Annotated[bool,typer.Option('--refresh')] = False):
+    """Write source-supported development tracks, comparisons and related-work prose."""
+    from research_scout.configuration import extraction_provider
+    from research_scout.workflows.related_work import RelatedWorkReview
+    from research_scout.workflows.weekly import _run_lock
+    config=load_config(ctx.obj)
+    with _run_lock(ctx.obj):
+        result=RelatedWorkReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
+                                 extraction_provider(config)).run(refresh=refresh)
+    emit(result)
+
+
+@app.command()
+@guarded
 def gaps(ctx: typer.Context,
          max_candidates: Annotated[int,typer.Option('--max-candidates',min=1,max=3)] = 3,
          refresh: Annotated[bool,typer.Option('--refresh')] = False,
@@ -325,6 +340,11 @@ def gaps(ctx: typer.Context,
     from research_scout.workflows.weekly import _run_lock
     config=load_config(ctx.obj)
     with _run_lock(ctx.obj):
+        profile=ctx.obj/'tracking-profile.json'
+        if profile.is_file() and json.loads(profile.read_text()).get('related_work_review'):
+            from research_scout.workflows.related_work import RelatedWorkReview
+            RelatedWorkReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
+                              extraction_provider(config)).run()
         result=TheoryGapReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
                               extraction_provider(config)).run(max_candidates,refresh=refresh,
                                                                external=not local_only)

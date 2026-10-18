@@ -34,6 +34,7 @@ class WeeklyProfile(StrictModel):
     timezone: str = 'Asia/Shanghai'
     extract: bool = True
     theory_gap_review: bool = False
+    related_work_review: bool = False
     max_gap_candidates: int = Field(default=3, ge=1, le=3)
 
     @classmethod
@@ -182,8 +183,18 @@ class WeeklyCollector:
                 errors.append({'stage':'article','arxiv_id':source.arxiv_id,'error':item['error']})
             articles.append(item)
             _atomic_json(queue_path,[s.model_dump(mode='json') for s in pending.values()])
+        related_work = None
+        lineage_ready = True
+        if profile.related_work_review and profile.extract:
+            try:
+                from research_scout.workflows.related_work import RelatedWorkReview
+                related_work = RelatedWorkReview(self.archive,self.workspace,
+                    self.ingestor.cache_dir,self.provider).run()
+            except Exception as exc:
+                lineage_ready = False
+                errors.append({'stage':'related_work_review','error':f'{type(exc).__name__}: {exc}'})
         gap_review = None
-        if profile.theory_gap_review and profile.extract:
+        if profile.theory_gap_review and profile.extract and lineage_ready:
             try:
                 from research_scout.workflows.gaps import TheoryGapReview
                 gap_review = TheoryGapReview(self.archive,self.workspace,self.ingestor.cache_dir,
@@ -194,6 +205,9 @@ class WeeklyCollector:
             'selection':'Keyword matching priority; not a scientific quality or novelty score.',
             'discovery_ran':discover,'discovered':discovered,'unique_candidates':len(candidates),'selected':len(selected),
             'remaining_pending':len(pending),'extract':profile.extract,'articles':articles,'errors':errors}
+        if related_work is not None:
+            report['related_work_review'] = {'report':'related-work/latest.md',
+                                             'track_count':len(related_work['sections'])}
         if gap_review is not None:
             query_errors = sum(len(c.get('external_errors',[])) for c in gap_review['cards'])
             report['theory_gap_review'] = {'candidate_count':len(gap_review['cards']),
@@ -229,6 +243,9 @@ class WeeklyCollector:
             if item.get('analysis_errors'):
                 lines.append('- 下游分析待处理：'+'; '.join(item['analysis_errors']))
             lines += ['', '### 摘要（作者原文）','',item.get('abstract') or '未提供摘要。','']
+        if report.get('related_work_review'):
+            lines += ['## 发展脉络与 Related Work','',
+                '[查看问题主线、跨论文比较和证据关系](related-work/latest.md)','']
         if report.get('theory_gap_review'):
             lines += ['## 理论 gap 候选','',
                 f"本轮 {report['theory_gap_review']['candidate_count']} 个待验证假说；新颖性未确定。",

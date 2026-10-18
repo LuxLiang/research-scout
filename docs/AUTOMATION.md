@@ -111,7 +111,8 @@ is the persistent report and knowledge archive.
 ## Theory-first discovery
 
 The sampling profile also enables [theory gap review](THEORY_GAPS.md) after paper
-processing. It proposes zero to three precise questions with source evidence,
+processing. It first updates [related work and development tracks](RELATED_WORK.md),
+then proposes zero to three precise questions with source evidence,
 proof obligations, falsification tests and external arXiv prior-art leads. These
 are hypotheses with novelty UNDETERMINED; source coverage does not establish that
 a question is open. Run `scout --workspace PATH gaps` separately to review an

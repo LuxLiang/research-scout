@@ -87,7 +87,7 @@ class TheoryGapReview:
             card['review_notes'] = [entry for entry in self.archive.get(card['opportunity_id']).history
                                     if entry.get('action') == 'PRIOR_ART_REVIEW']
 
-    def _context(self):
+    def _context(self, *, include_related_work=True):
         papers = sorted([p for p in self.archive.list('paper') if p.extraction_status == 'EXTRACTED'],
                         key=lambda p: (str(p.published or ''), p.id), reverse=True)[:20]
         ids = {p.id for p in papers}
@@ -107,15 +107,25 @@ class TheoryGapReview:
         prior_path = self.workspace / 'gap-prior-art.json'
         prior = [SourcePaper.model_validate(p).model_dump(mode='json')
                  for p in json.loads(prior_path.read_text())] if prior_path.is_file() else []
-        return {'papers': [p.model_dump(mode='json') for p in papers],
+        context = {'papers': [p.model_dump(mode='json') for p in papers],
                 'records': [r.model_dump(mode='json') for r in sorted(evidence + scientific, key=lambda r: r.id)],
                 'extraction_limitations': limitations, 'known_external_metadata': prior,
                 'coverage': 'At most twenty extracted papers, indexed evidence and first-pass records; not a complete literature survey.'}
+        lineage = self.workspace / 'reports' / 'related-work' / 'latest.json'
+        if include_related_work and lineage.is_file():
+            review = json.loads(lineage.read_text())
+            context['related_work'] = {k: review[k] for k in
+                ('input_fingerprint','sections','matrix','relations','missing_foundations','limitations','source_nodes')}
+            context['related_work']['reader_notes'] = review.get('reader_notes',[])
+        return context
 
     def _validate(self, batch, context):
         allowed = {r['id']: self.archive.get(r['id']) for r in context['records']}
         papers = {p['id'] for p in context['papers']}
         known_urls = {url for p in context['known_external_metadata'] for url in p['urls']}
+        related = context.get('related_work',{})
+        known_urls.update(n['url'] for n in related.get('source_nodes',{}).values() if n['url'])
+        known_urls.update(s['url'] for n in related.get('reader_notes',[]) for s in n.get('sources',[]))
         for card in batch.proposals:
             if len(set(card.source_paper_ids)) < 2 or not set(card.source_paper_ids) <= papers:
                 raise ValueError('Gap requires two distinct supplied source papers')

@@ -10,7 +10,8 @@ Research Scout is a local-first scientific knowledge and research discovery syst
 It connects **problems → bottlenecks → mechanisms → results**, using papers and
 exact source versions as evidence, and preserves how that knowledge changes.
 
-[Theory gap review](docs/THEORY_GAPS.md) turns the library into explicit research
+[Related work](docs/RELATED_WORK.md) reconstructs problem development and technical
+changes before [theory gap review](docs/THEORY_GAPS.md) proposes explicit research
 questions with evidence, proof obligations, falsification tests and prior-art
 leads. Candidates remain hypotheses until their novelty and feasibility are reviewed.
 

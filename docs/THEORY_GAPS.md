@@ -5,6 +5,11 @@ problems, source results, mechanisms, evidence and extraction limitations to
 propose up to three explicit theory questions. Zero candidates is valid. Naive
 ideas already covered by the supplied literature are retained as exclusions.
 
+The sampling profile first updates [related work and development tracks](RELATED_WORK.md).
+The validated history and scope-comparison matrix inform the gap stage. If that
+update fails, gap generation is skipped for the run. Existing candidate decisions
+are retained; a revised narrative is not a novelty confirmation.
+
 ```bash
 export SCOUT_WORKSPACE=/path/to/research-library
 scout gaps
@@ -60,6 +65,7 @@ Set these fields in `tracking-profile.json`:
 
 ```json
 {
+  "related_work_review": true,
   "theory_gap_review": true,
   "max_gap_candidates": 3
 }

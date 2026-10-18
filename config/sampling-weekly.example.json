@@ -48,5 +48,6 @@
     ]
   },
   "theory_gap_review": true,
-  "max_gap_candidates": 3
+  "max_gap_candidates": 3,
+  "related_work_review": true
 }

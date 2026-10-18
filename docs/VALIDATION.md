@@ -149,3 +149,29 @@ novelty confirmation or an unsupported assertion of theorem equivalence. Both
 opportunities remain HYPOTHESIS with UNDETERMINED novelty. Actual review artifacts
 and source snapshots are in the independent local library. Archive validation
 passes with the two new proposed problems, hypothesized bottlenecks and opportunities.
+
+## Related work before gap discovery
+
+Added `scout related-work`, connected problem-driven prose, a source comparison
+matrix, bibliography observations, a citation/thematic graph and prioritized
+missing foundations. Every cited archived paper needs its own existing evidence;
+external metadata cannot promote itself to full-text coverage. Bibliography title
+matches retain exact source spans. Citation is distinguished from thematic
+comparison, and neither asserts a proved technical improvement. Narrative output
+does not mutate scientific statuses or create opportunities.
+
+Twelve added tests cover source/evidence ownership, complete matrix coverage,
+fabricated citation edges, metadata coverage, cache reuse, downstream foundation
+URLs, workflow ordering and blocking gap generation after a history-stage failure.
+The final suite passes **163 tests**; Ruff and wheel build pass.
+
+The real ten-paper library produced **four development tracks, ten comparison
+rows and eight citation/thematic relations**, drawing on ten archived papers and
+seven separately labeled metadata sources. The report indexes 59 existing source
+evidence records; ten positive bibliography observations were available to the
+writer. Five foundational metadata records were verified from primary sources;
+this task did not download additional full papers. The library still contains ten
+PDFs, and archive validation passes. Existing opportunities remain hypotheses.
+This is a source-supported first draft, not a complete related-work search or an
+independent check of the cited proofs. Weekly automation now updates this context
+before generating theoretical gap candidates when enabled.

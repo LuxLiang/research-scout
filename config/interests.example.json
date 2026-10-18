@@ -1,0 +1,6 @@
+{
+  "name": "sampling-and-transfer",
+  "arxiv_queries": ["all:underdamped Langevin", "all:variance reduction"],
+  "labels": ["sampling", "optimization", "convergence"],
+  "max_results": 10
+}

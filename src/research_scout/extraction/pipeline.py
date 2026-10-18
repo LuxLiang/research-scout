@@ -11,7 +11,7 @@ from research_scout.comparison import ComparisonEngine
 from research_scout.discovery import SourcePaper
 from research_scout.domain.interfaces import ArchiveProtocol, ExtractionProvider
 from research_scout.domain.models import (
-    Application, AssessmentStatus, Coverage, Evidence, EventType, EvolutionEvent, Mechanism, Paper,
+    Application, AssessmentStatus, Coverage, Evidence, EventType, EvolutionEvent, Mechanism, Paper, PaperVersion,
     Record, Relationship, RelationType, Result, ScientificClaim, parse_record, reference_ids, stable_id,
 )
 from research_scout.ingestion import IngestionOutcome, PaperIngestor
@@ -54,10 +54,19 @@ class PaperPipeline:
         self.provider = provider
         self.cache_dir = self.ingestor.cache_dir
 
-    def process(self, source: str | Path | SourcePaper, extract: bool = True) -> ProcessingOutcome:
+    def process(self, source: str | Path | SourcePaper | IngestionOutcome, extract: bool = True) -> ProcessingOutcome:
         if extract and self.provider is None:
             raise ConfigurationError("No extraction provider configured; request extract=False for metadata/source ingestion")
-        ingested = self.ingestor.ingest(source)
+        if isinstance(source, IngestionOutcome):
+            # A resumable collector may already have the immutable source cached.
+            paper = self.archive.get(source.paper.id)
+            version = self.archive.get(source.version.id)
+            if (not isinstance(paper, Paper) or not isinstance(version, PaperVersion)
+                    or version.paper_id != paper.id):
+                raise ValueError("Cached ingestion must identify an existing same-paper version")
+            ingested = IngestionOutcome(paper, version, False)
+        else:
+            ingested = self.ingestor.ingest(source)
         outcome = ProcessingOutcome(ingestion=ingested)
         if not extract:
             return outcome

@@ -443,3 +443,24 @@ def test_reverse_revision_ingestion_keeps_scientific_order(tmp_path):
     paper=archive.get(result.paper.id)
     assert [archive.get(v).version for v in paper.version_ids]==['v1','v2','v3']
     assert archive.get(paper.version_ids[0]).supersedes_version_id is None
+
+
+def test_cached_ingestion_resumes_without_source_download(tmp_path,monkeypatch):
+    from research_scout.discovery import SourcePaper
+    from research_scout.domain.models import Coverage
+    from research_scout.extraction import ExtractionEnvelope, PaperPipeline
+    from research_scout.storage import Archive
+    archive=Archive(tmp_path/'knowledge')
+    class Provider:
+        last_envelope=ExtractionEnvelope()
+        def extract(self,paper,version,text):
+            assert text=='cached source'
+            return []
+    pipeline=PaperPipeline(archive,tmp_path/'sources',Provider())
+    ingested=pipeline.ingestor.ingest(SourcePaper(title='Cached source',text='cached source',coverage=Coverage.FULL_TEXT))
+    def no_download(*args,**kwargs):
+        raise AssertionError('Cached source must not be fetched again')
+    monkeypatch.setattr(pipeline.ingestor,'ingest',no_download)
+    out=pipeline.process(ingested)
+    assert out.version.id==ingested.version.id
+    assert archive.get(ingested.paper.id).extraction_status=='EXTRACTED'

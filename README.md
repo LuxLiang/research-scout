@@ -74,7 +74,8 @@ no API credentials. See [usage](docs/USAGE.md) for live ingestion and model setu
 
 - [Architecture](docs/ARCHITECTURE.md), [scientific data model](docs/DATA_MODEL.md),
   [knowledge evolution](docs/KNOWLEDGE_EVOLUTION.md)
-- [Python APIs](docs/API.md), [Research Harness handoff](docs/HARNESS_INTEGRATION.md)
+- [Python APIs](docs/API.md), [weekly automation with Codex](docs/AUTOMATION.md),
+  [Research Harness handoff](docs/HARNESS_INTEGRATION.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md), [validation and limits](docs/VALIDATION.md)
 
 Optional semantic/vector retrieval, Semantic Scholar and automatic reverse import

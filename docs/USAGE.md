@@ -88,3 +88,12 @@ knowledge. Programmatic APIs support explicit failures and lifecycle control.
 Local text and HTML inputs are conservatively labeled PARTIAL_TEXT; supplying a
 text file does not assert that it contains an entire paper. Extractable PDFs
 with text on every page are FULL_TEXT; partially readable PDFs stay PARTIAL_TEXT.
+
+
+## Automatic weekly collection using ChatGPT/Codex
+
+See [automation setup](AUTOMATION.md) for a saved-login Codex extraction provider,
+a bounded weekly shortlist, PDF reading, failure retry queue and local reports.
+The `scout weekly` command supports `--since 365d --max-papers 1` for a first
+bootstrap and uses the workspace profile for subsequent runs. The cron installer
+preserves unrelated jobs and requires a running machine/daemon.

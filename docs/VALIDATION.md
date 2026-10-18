@@ -64,8 +64,9 @@ tests now cover each, including mismatched witness scope and historical replay.
 
 These are **software integrity results on explicitly synthetic scientific
 records**, not proof of theorem truth, novelty or complete literature coverage.
-The HTTP model adapter is implemented and mocked in tests; no real model-backed
-scientific extraction was run because no model credentials were supplied.
+For the original release, the HTTP model adapter was mocked and no real model-backed
+scientific extraction was run. The later Codex extension and live smoke are recorded
+in the follow-up section below.
 Live metadata connections were tested separately as reported above.
 
 Logical implication between nonidentical assumptions/guarantees requires proof
@@ -79,3 +80,20 @@ Semantic Scholar and automatic Harness reverse import remain future extensions.
 The reverse-import envelope is documented; it is not silently treated as implemented.
 Migrations transform records into the installed schema; unknown future schema
 versions require a new parser instead of an unsafe automatic conversion.
+
+## Weekly collection and Codex follow-up
+
+Added a saved-login `CodexExecProvider`, bounded weekly collection, matched-topic
+classification, persistent retry/overflow queue, local Markdown/JSON reports and
+an idempotent user cron installer. Follow-up execution: **122 pytest tests passed
+in 57.96 seconds**, including mocked subprocess, source failure/retry, version reuse,
+selection limits, pending-only resumption, cached PDF/text reuse, concurrent-run lock
+and preservation of unrelated cron entries.
+Ruff passes. A real ChatGPT-authenticated Codex smoke extracted an Evidence and
+Claim from a short explicitly synthetic source, reported missing theorem/proof
+information, and required no API key. The exact-quote anchoring hardening separately
+passed **22 provider tests**. The wheel builds with the new modules.
+
+This extends the original HTTP-backend validation above: HTTP calls remain mocked;
+Codex saved-login execution has now been exercised. Genuine full-paper processing
+is an operational corpus run, not proof that its scientific extraction is correct.

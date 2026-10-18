@@ -1,0 +1,50 @@
+{
+  "name": "Langevin · SGHMC · Schrödinger–Föllmer · Discrete Sampling",
+  "arxiv_queries": [
+    "(ti:\"underdamped Langevin\" OR abs:\"underdamped Langevin\" OR ti:SGHMC OR abs:\"stochastic gradient Hamiltonian\")",
+    "(ti:\"overdamped Langevin\" OR abs:\"overdamped Langevin\")",
+    "(all:\"Schrodinger Follmer\" OR all:\"Schrödinger-Föllmer\" OR all:\"Follmer sampler\" OR all:\"Föllmer process\")",
+    "(ti:\"discrete sampling\" OR abs:\"discrete sampling\" OR ti:\"discrete Langevin\" OR abs:\"discrete Langevin\")",
+    "(ti:\"Markov chain Monte Carlo\" OR ti:\"stochastic sampling\")"
+  ],
+  "labels": [
+    "sampling"
+  ],
+  "priority_terms": [
+    "underdamped Langevin",
+    "overdamped Langevin",
+    "SGHMC",
+    "stochastic gradient Hamiltonian",
+    "Schrodinger Follmer",
+    "Follmer",
+    "discrete sampling",
+    "discrete Langevin",
+    "Markov chain Monte Carlo"
+  ],
+  "max_results_per_query": 20,
+  "max_papers": 5,
+  "lookback_days": 8,
+  "request_interval_seconds": 3.1,
+  "timezone": "Asia/Shanghai",
+  "extract": true,
+  "topic_terms": {
+    "underdamped-langevin": [
+      "underdamped Langevin"
+    ],
+    "overdamped-langevin": [
+      "overdamped Langevin"
+    ],
+    "sghmc": [
+      "SGHMC",
+      "stochastic gradient Hamiltonian"
+    ],
+    "schrodinger-follmer": [
+      "Schrodinger Follmer",
+      "Follmer"
+    ],
+    "discrete-sampling": [
+      "discrete sampling",
+      "discrete Langevin"
+    ]
+  }
+}

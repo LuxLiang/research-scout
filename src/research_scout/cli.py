@@ -42,6 +42,8 @@ def guarded(fn):
     def wrapped(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
+        except typer.Exit:
+            raise
         except (ValueError, TypeError, KeyError, OSError, RuntimeError, httpx.HTTPError) as exc:
             typer.echo(f'Error: {exc}', err=True)
             raise typer.Exit(2) from exc
@@ -194,8 +196,16 @@ def doctor(ctx: typer.Context):
     store=archive(ctx)
     errors=store.validate()
     config=load_config(ctx.obj)
+    if config.extraction_provider == 'codex':
+        import shutil
+        import subprocess
+        executable=shutil.which(config.codex_binary)
+        ready=bool(executable and subprocess.run([executable,'login','status'],capture_output=True,
+                                                 timeout=15).returncode==0)
+    else:
+        ready=bool(os.environ.get(config.llm_api_key_env) and (config.llm_model or os.environ.get('SCOUT_MODEL')))
     emit({'workspace':ctx.obj,'records':len(store.list()),'errors':errors,
-          'offline_ready':not errors,'llm_configured':bool(os.environ.get(config.llm_api_key_env) and (config.llm_model or os.environ.get('SCOUT_MODEL'))),
+          'offline_ready':not errors,'extraction_provider':config.extraction_provider,'llm_configured':ready,
           'scientific_correctness_verified':False})
     if errors:
         raise typer.Exit(2)
@@ -206,13 +216,12 @@ def doctor(ctx: typer.Context):
 def ingest(ctx: typer.Context, source: str,
            extract: Annotated[bool,typer.Option('--extract/--metadata-only',help='Run configured structured scientific extraction.')] = False):
     """Ingest DOI/arXiv/URL/local PDF or text; scientific extraction is explicit."""
-    from research_scout.extraction import OpenAICompatibleProvider
+    from research_scout.configuration import extraction_provider
     from research_scout.workflows.controller import ScoutController
     config=load_config(ctx.obj)
     provider=None
     if extract:
-        provider=OpenAICompatibleProvider(model=config.llm_model,
-            base_url=config.llm_base_url, api_key=os.environ.get(config.llm_api_key_env))
+        provider=extraction_provider(config)
     emit(ScoutController(archive(ctx),cache_path(ctx.obj,config),provider).process(source,extract=extract))
 
 
@@ -301,6 +310,37 @@ def eval(ctx: typer.Context):
     result=run_evaluation()
     emit(result)
     if result['failed']:
+        raise typer.Exit(1)
+
+
+@app.command()
+@guarded
+def weekly(ctx: typer.Context,
+           profile: Annotated[Path | None,typer.Option('--profile')] = None,
+           since: Annotated[str | None,typer.Option('--since')] = None,
+           max_papers: Annotated[int | None,typer.Option('--max-papers',min=1,max=20)] = None,
+           metadata_only: Annotated[bool,typer.Option('--metadata-only')] = False,
+           pending_only: Annotated[bool,typer.Option('--pending-only',help='Resume the saved queue without new discovery.')] = False):
+    """Collect a bounded shortlist, read full papers, update knowledge and write a report."""
+    import re
+    from research_scout.configuration import extraction_provider
+    from research_scout.workflows.weekly import WeeklyCollector,WeeklyProfile
+    path=profile or ctx.obj/'tracking-profile.json'
+    selected=WeeklyProfile.load(path)
+    if since is not None:
+        match=re.fullmatch(r'(\d+)d',since)
+        if not match:
+            raise ValueError('--since must be a duration such as 8d')
+        selected.lookback_days=int(match[1])
+    if max_papers is not None:
+        selected.max_papers=max_papers
+    if metadata_only:
+        selected.extract=False
+    config=load_config(ctx.obj)
+    provider=extraction_provider(config) if selected.extract else None
+    result=WeeklyCollector(archive(ctx),ctx.obj,cache_path(ctx.obj,config),provider).run(selected,discover=not pending_only)
+    emit(result)
+    if result['errors']:
         raise typer.Exit(1)
 
 

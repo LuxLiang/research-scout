@@ -33,6 +33,8 @@ class WeeklyProfile(StrictModel):
     request_interval_seconds: float = Field(default=3.1, ge=0, le=60)
     timezone: str = 'Asia/Shanghai'
     extract: bool = True
+    theory_gap_review: bool = False
+    max_gap_candidates: int = Field(default=3, ge=1, le=3)
 
     @classmethod
     def load(cls, path):
@@ -180,10 +182,26 @@ class WeeklyCollector:
                 errors.append({'stage':'article','arxiv_id':source.arxiv_id,'error':item['error']})
             articles.append(item)
             _atomic_json(queue_path,[s.model_dump(mode='json') for s in pending.values()])
+        gap_review = None
+        if profile.theory_gap_review and profile.extract:
+            try:
+                from research_scout.workflows.gaps import TheoryGapReview
+                gap_review = TheoryGapReview(self.archive,self.workspace,self.ingestor.cache_dir,
+                                             self.provider,arxiv=self.arxiv).run(profile.max_gap_candidates)
+            except Exception as exc:
+                errors.append({'stage':'theory_gap_review','error':f'{type(exc).__name__}: {exc}'})
         report={'profile':profile.name,'recorded_at':current.isoformat(),'since':since.isoformat(),
             'selection':'Keyword matching priority; not a scientific quality or novelty score.',
             'discovery_ran':discover,'discovered':discovered,'unique_candidates':len(candidates),'selected':len(selected),
             'remaining_pending':len(pending),'extract':profile.extract,'articles':articles,'errors':errors}
+        if gap_review is not None:
+            query_errors = sum(len(c.get('external_errors',[])) for c in gap_review['cards'])
+            report['theory_gap_review'] = {'candidate_count':len(gap_review['cards']),
+                'report':'gaps/latest.md','novelty':'UNDETERMINED',
+                'external_query_error_count':query_errors}
+            if query_errors:
+                errors.append({'stage':'theory_prior_art',
+                               'error':f'{query_errors} prior-art queries failed; see gaps/latest.md'})
         directory=self.workspace/'reports'
         filename=current.strftime('%Y-%m-%dT%H%M%S%f')
         _atomic_json(directory/f'{filename}.json',report)
@@ -211,6 +229,10 @@ class WeeklyCollector:
             if item.get('analysis_errors'):
                 lines.append('- 下游分析待处理：'+'; '.join(item['analysis_errors']))
             lines += ['', '### 摘要（作者原文）','',item.get('abstract') or '未提供摘要。','']
+        if report.get('theory_gap_review'):
+            lines += ['## 理论 gap 候选','',
+                f"本轮 {report['theory_gap_review']['candidate_count']} 个待验证假说；新颖性未确定。",
+                '[查看问题、证明义务和外部查重记录](gaps/latest.md)','']
         if report['errors']:
             lines += ['## 本次未完成项','']
             lines += ['- '+str(e) for e in report['errors']]

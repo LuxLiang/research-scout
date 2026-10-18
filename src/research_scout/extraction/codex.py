@@ -94,6 +94,51 @@ class CodexExecProvider:
                 + json.dumps(original, ensure_ascii=True)
             )
 
+    def run_structured(self, prompt: str, output_schema: dict) -> dict:
+        """Execute an ephemeral structured task through the same saved-login boundary."""
+        self.last_raw_output = None
+        with TemporaryDirectory(prefix="scout-codex-") as temporary:
+            root = Path(temporary)
+            schema_path = root / "schema.json"
+            output_path = root / "output.json"
+            working_path = root / "work"
+            working_path.mkdir()
+            schema_path.write_text(json.dumps(output_schema), encoding="utf-8")
+            command = [self.binary, "exec", "--ephemeral", "--skip-git-repo-check", "--sandbox",
+                       "read-only", "-C", str(working_path), "--output-schema", str(schema_path),
+                       "--output-last-message", str(output_path)]
+            if self.model:
+                command.extend(["--model", self.model])
+            command.append("-")
+            try:
+                result = subprocess.run(command, input=prompt, text=True, encoding="utf-8",
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                        timeout=self.timeout, check=False, cwd=working_path)
+            except FileNotFoundError:
+                raise ConfigurationError("Codex executable not found; install Codex CLI first") from None
+            except subprocess.TimeoutExpired:
+                raise ConfigurationError(
+                    f"Codex extraction timed out after {self.timeout:g} seconds"
+                ) from None
+            except OSError:
+                raise ConfigurationError("Unable to start Codex CLI; check executable permissions") from None
+            if result.returncode:
+                # CLI diagnostics may contain source passages or credentials. Do not echo them.
+                raise ConfigurationError(
+                    f"Codex extraction failed (exit {result.returncode}); check `codex login status` "
+                    "and your configured model access. No API-key fallback was attempted."
+                )
+            try:
+                raw = json.loads(output_path.read_text(encoding="utf-8"))
+                if not isinstance(raw, dict):
+                    raise ValueError("invalid envelope")
+                self.last_raw_output = json.loads(json.dumps(raw))
+                return raw
+            except (OSError, ValueError, TypeError):
+                raise ConfigurationError(
+                    "Codex returned missing or invalid structured extraction; no records were accepted"
+                ) from None
+
     def extract(self, paper: Paper, version: PaperVersion, text: str) -> list[Record]:
         return self.extract_with_context(paper, version, text, [])
 
@@ -112,9 +157,14 @@ class CodexExecProvider:
             "records_json must be a JSON-encoded array of records conforming exactly to the supplied "
             "schemas. Other fields are string arrays summarizing the paper. Reuse existing precise "
             "entities only when technically identical. A new application is not a new mechanism. "
-            "Produce a compact first-pass extraction of at most twelve records: a precise problem, "
+            "Produce a compact first-pass extraction of at most sixteen records: a precise problem, "
             "the main mechanism, one or two scoped results, a few attributable claims and their "
             "evidence. Omit unsupported entities. Every scientific record except Evidence must cite evidence_ids. "
+            "State actual mathematical assumptions and quantifiers in every scope, rather than only "
+            "assumption numbers. If their contents cannot be recovered, mark them explicitly unresolved; "
+            "do not guess. When supported, record technical obstructions as HYPOTHESIZED_BOTTLENECK "
+            "records and link them to the source problem/mechanism. An unhandled regime is not "
+            "automatically an author-endorsed open question or a global literature gap. "
             "The complete source is provided as ordered source_segments, each an exact contiguous "
             "slice. For Evidence, select the relevant supplied segment:N locator and set quotation "
             "to null; the program copies that exact segment and its verified character span. "
@@ -151,51 +201,19 @@ class CodexExecProvider:
             }},
             "required": ["records_json", *fields],
         }
-        with TemporaryDirectory(prefix="scout-codex-") as temporary:
-            root = Path(temporary)
-            schema_path = root / "schema.json"
-            output_path = root / "output.json"
-            working_path = root / "work"
-            working_path.mkdir()
-            schema_path.write_text(json.dumps(output_schema), encoding="utf-8")
-            command = [self.binary, "exec", "--ephemeral", "--skip-git-repo-check", "--sandbox",
-                       "read-only", "-C", str(working_path), "--output-schema", str(schema_path),
-                       "--output-last-message", str(output_path)]
-            if self.model:
-                command.extend(["--model", self.model])
-            command.append("-")
-            try:
-                result = subprocess.run(command, input=prompt, text=True, encoding="utf-8",
-                                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                                        timeout=self.timeout, check=False, cwd=working_path)
-            except FileNotFoundError:
-                raise ConfigurationError("Codex executable not found; install Codex CLI first") from None
-            except subprocess.TimeoutExpired:
-                raise ConfigurationError(
-                    f"Codex extraction timed out after {self.timeout:g} seconds"
-                ) from None
-            except OSError:
-                raise ConfigurationError("Unable to start Codex CLI; check executable permissions") from None
-            if result.returncode:
-                # CLI diagnostics may contain source passages or credentials. Do not echo them.
-                raise ConfigurationError(
-                    f"Codex extraction failed (exit {result.returncode}); check `codex login status` "
-                    "and your configured model access. No API-key fallback was attempted."
-                )
-            try:
-                raw = json.loads(output_path.read_text(encoding="utf-8"))
-                self.last_raw_output = json.loads(json.dumps(raw)) if isinstance(raw, dict) else None
-                if not isinstance(raw, dict) or set(raw) != {"records_json", *fields}:
-                    raise ValueError("invalid envelope fields")
-                records = json.loads(raw.pop("records_json"))
-                envelope = ExtractionEnvelope.model_validate({"records": records, **raw})
-                parsed = [parse_record(record) for record in envelope.records]
-                if any(record.kind not in allowed for record in parsed):
-                    raise ValueError("record kind is not permitted for extraction")
-            except (OSError, ValueError, TypeError, KeyError):
-                raise ConfigurationError(
-                    "Codex returned missing or invalid structured extraction; no records were accepted"
-                ) from None
+        raw = self.run_structured(prompt, output_schema)
+        try:
+            if set(raw) != {"records_json", *fields}:
+                raise ValueError("invalid envelope fields")
+            records = json.loads(raw.pop("records_json"))
+            envelope = ExtractionEnvelope.model_validate({"records": records, **raw})
+            parsed = [parse_record(record) for record in envelope.records]
+            if any(record.kind not in allowed for record in parsed):
+                raise ValueError("record kind is not permitted for extraction")
+        except (ValueError, TypeError, KeyError):
+            raise ConfigurationError(
+                "Codex returned missing or invalid structured extraction; no records were accepted"
+            ) from None
         self._normalize_unverified_status(parsed)
         self._anchor_evidence(parsed, paper, version, text)
         envelope.records = [record.model_dump(mode="json") for record in parsed]

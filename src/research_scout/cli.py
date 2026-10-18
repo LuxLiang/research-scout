@@ -315,6 +315,24 @@ def eval(ctx: typer.Context):
 
 @app.command()
 @guarded
+def gaps(ctx: typer.Context,
+         max_candidates: Annotated[int,typer.Option('--max-candidates',min=1,max=3)] = 3,
+         refresh: Annotated[bool,typer.Option('--refresh')] = False,
+         local_only: Annotated[bool,typer.Option('--local-only')] = False):
+    """Propose theory questions with evidence, proof obligations and prior-art leads."""
+    from research_scout.configuration import extraction_provider
+    from research_scout.workflows.gaps import TheoryGapReview
+    from research_scout.workflows.weekly import _run_lock
+    config=load_config(ctx.obj)
+    with _run_lock(ctx.obj):
+        result=TheoryGapReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
+                              extraction_provider(config)).run(max_candidates,refresh=refresh,
+                                                               external=not local_only)
+    emit(result)
+
+
+@app.command()
+@guarded
 def weekly(ctx: typer.Context,
            profile: Annotated[Path | None,typer.Option('--profile')] = None,
            since: Annotated[str | None,typer.Option('--since')] = None,

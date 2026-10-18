@@ -124,3 +124,28 @@ archive integrity checks passed. A transient download timeout was retried, and
 one explicit non-verification synonym was normalized with provenance retained.
 The corpus and its reports are outside the package checkout. These are successful
 source-attributed extractions, not independent mathematical verification.
+
+## Theory-first gap review
+
+Added `scout gaps` and optional weekly theory review with typed hypotheses,
+two-paper evidence requirements, explicit target quantifiers, closest results,
+proof obligations, falsification tests, prior-art queries and retained exclusions.
+The stage creates proposed problems, hypothesized bottlenecks and HYPOTHESIS
+opportunities; it never confirms novelty or assigns numerical rankings.
+
+Executed **151 tests in 59.08 seconds**, with Ruff and wheel build passing.
+Nineteen added adversarial cases cover fabricated references, incomplete source
+coverage, missing quantifiers, false novelty labels, blank proof obligations,
+validation-before-publication, unsupported exclusion URLs, external failures and
+retry, cache reuse, same-scope prior results, rejection retention and weekly
+report/error integration. The original Codex boundary tests also pass after
+factoring its saved-login structured task runner.
+
+A real ten-paper review produced **two theoretical candidates and eight excluded
+or deferred ideas**, with explicit arXiv search records. Supplementary primary-source
+checks found related high-temperature marginal-error work for the discrete
+candidate. This was retained as a prior-art warning, not converted into either a
+novelty confirmation or an unsupported assertion of theorem equivalence. Both
+opportunities remain HYPOTHESIS with UNDETERMINED novelty. Actual review artifacts
+and source snapshots are in the independent local library. Archive validation
+passes with the two new proposed problems, hypothesized bottlenecks and opportunities.

@@ -46,5 +46,7 @@
       "discrete sampling",
       "discrete Langevin"
     ]
-  }
+  },
+  "theory_gap_review": true,
+  "max_gap_candidates": 3
 }

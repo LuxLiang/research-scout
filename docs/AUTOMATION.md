@@ -107,3 +107,12 @@ The optional `inbox/` directory is a place to stage files, not a watched folder.
 Weekly collection performs literature discovery automatically and does not require
 seed PDFs. No email or chat messages are sent by the local collector; its output
 is the persistent report and knowledge archive.
+
+## Theory-first discovery
+
+The sampling profile also enables [theory gap review](THEORY_GAPS.md) after paper
+processing. It proposes zero to three precise questions with source evidence,
+proof obligations, falsification tests and external arXiv prior-art leads. These
+are hypotheses with novelty UNDETERMINED; source coverage does not establish that
+a question is open. Run `scout --workspace PATH gaps` separately to review an
+existing library without downloading another batch.

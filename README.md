@@ -6,17 +6,22 @@
 
 <p align="center"><em>From scattered evidence to a clearer research picture.</em></p>
 
-Research Scout is a local-first scientific knowledge and research discovery system.
-It connects **problems → bottlenecks → mechanisms → results**, using papers and
-exact source versions as evidence, and preserves how that knowledge changes.
+Research Scout maintains **research fields as living related work**: problem
+branches, quantitative theorem/result tables, source-supported development tracks
+and a history of what changed. Papers and exact source versions provide evidence.
 
-[Related work](docs/RELATED_WORK.md) reconstructs problem development and technical
-changes before [theory gap review](docs/THEORY_GAPS.md) proposes explicit research
-questions with evidence, proof obligations, falsification tests and prior-art
-leads. Candidates remain hypotheses until their novelty and feasibility are reviewed.
+[Field dossiers](docs/FIELDS.md) are the main reading interface. Each result keeps
+its assumptions, quantifiers, metric, rate, source version and proof mechanism;
+oracle costs and initialization remain explicit or unknown. Matching settings
+never automatically establish a better theorem. [Related work](docs/RELATED_WORK.md)
+connects these results into a technical narrative.
+
+[Theory gap review](docs/THEORY_GAPS.md) remains available on demand. The sampling
+weekly profile maintains the field dossiers without automatically generating
+research opportunities.
 
 The system complements [Research Harness](https://github.com/LuxLiang/research-harness):
-Scout discovers and develops ideas; Harness independently reviews proposals and
+Scout maintains the literature context and supports idea development; Harness independently reviews proposals and
 executes and verifies research. Their repositories and workspaces stay separate.
 
 ## What works
@@ -38,6 +43,19 @@ executes and verifies research. Their repositories and workspaces stay separate.
 **Source-supported means attributable, not mathematically proven.** Broader
 problems stay open when a result needs stronger assumptions. Similar text does
 not prove logical implication. Missing models never trigger fabricated summaries.
+
+## Maintain research fields
+
+```bash
+scout --workspace /path/to/library init
+scout --workspace /path/to/library fields configure config/sampling-fields.example.json
+scout --workspace /path/to/library fields update
+scout --workspace /path/to/library fields show sfs --markdown
+```
+
+Dossiers are written to `fields/README.md` and `fields/<id>/latest.md`, with
+retained snapshots and changes. Updating result tables needs no model or network.
+After source changes, `scout related-work` refreshes the narrative and dossiers.
 
 ## Reproduce the offline end-to-end workflow
 

@@ -33,3 +33,10 @@ review timestamps must carry a timezone. Numeric portfolio rankings require
 attributable evidence, and all six dimensions stay separate. Canonical storage
 also checks lifecycle transitions and append-only portfolio reasoning, so a raw
 record import cannot silently bypass the portfolio service.
+
+ResearchField/FieldBranch configuration and ResultNote annotations are separately
+typed workspace projections, not new canonical scientific statuses. Result notes
+pin a content fingerprint and own-version evidence; unknown cost and oracle
+fields remain null. Field snapshots preserve exact Result/Scope references,
+conservative comparison outcomes and parent-linked changes. Source-currentness,
+coverage and mathematical verification remain distinct. See [field dossiers](FIELDS.md).

@@ -1,6 +1,7 @@
 # Architecture
 
-Scout owns discovery and idea formation. Research Harness independently owns
+Scout primarily maintains research-field dossiers and source-supported related work.
+Discovery and idea formation are optional workflows. Research Harness independently owns
 proposal review, research execution and verification. Its inspected interface
 accepts Markdown or text-extractable PDF via `research init <project> --mode
 proposal-review --proposal PATH`. Scout exports Markdown; it does not write
@@ -26,3 +27,10 @@ Timelines derive scoped state, never mutable global solved flags on topics.
 Offline fixtures are explicitly synthetic. Live source adapters and configured
 model adapters fail visibly on missing configuration or network errors. No fake
 fallback. Attribution validation does not prove mathematical correctness.
+
+Field dossiers are versioned projections in `fields/`, configured by `fields.json`.
+They retain the full matching result history, exact source/evidence references,
+optional source-pinned result notes, conservative setting comparisons and input
+change records. Their readable related work is backed by structured records;
+stale prose is marked while result tables can update offline. Field membership
+and thematic branches do not change canonical scientific scope or status.

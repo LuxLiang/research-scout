@@ -87,9 +87,11 @@ class TheoryGapReview:
             card['review_notes'] = [entry for entry in self.archive.get(card['opportunity_id']).history
                                     if entry.get('action') == 'PRIOR_ART_REVIEW']
 
-    def _context(self, *, include_related_work=True):
+    def _context(self, *, include_related_work=True, paper_limit=20):
         papers = sorted([p for p in self.archive.list('paper') if p.extraction_status == 'EXTRACTED'],
-                        key=lambda p: (str(p.published or ''), p.id), reverse=True)[:20]
+                        key=lambda p: (str(p.published or ''), p.id), reverse=True)
+        if paper_limit is not None:
+            papers = papers[:paper_limit]
         ids = {p.id for p in papers}
         evidence = [e for e in self.archive.list('evidence') if e.paper_id in ids and not e.synthetic]
         eids = {e.id for e in evidence}
@@ -110,7 +112,8 @@ class TheoryGapReview:
         context = {'papers': [p.model_dump(mode='json') for p in papers],
                 'records': [r.model_dump(mode='json') for r in sorted(evidence + scientific, key=lambda r: r.id)],
                 'extraction_limitations': limitations, 'known_external_metadata': prior,
-                'coverage': 'At most twenty extracted papers, indexed evidence and first-pass records; not a complete literature survey.'}
+                'coverage': ('At most twenty extracted papers' if paper_limit==20 else 'All extracted papers in this archive') +
+                    ', indexed evidence and first-pass records; not a complete literature survey.'}
         lineage = self.workspace / 'reports' / 'related-work' / 'latest.json'
         if include_related_work and lineage.is_file():
             review = json.loads(lineage.read_text())

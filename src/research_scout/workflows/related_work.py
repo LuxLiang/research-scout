@@ -66,7 +66,7 @@ class RelatedWorkReview:
 
     def _context(self):
         context = TheoryGapReview(self.archive,self.workspace,self.cache_dir,self.provider)._context(
-            include_related_work=False)
+            include_related_work=False,paper_limit=None)
         nodes = {p['id']:dict(paper_id=p['id'],title=p['title'],published=p['published'],
                  coverage=','.join(sorted({r['coverage'] for r in context['records']
                      if r['kind']=='evidence' and r['paper_id']==p['id']})) or 'EXTRACTION_COVERAGE_UNKNOWN',
@@ -158,6 +158,8 @@ class RelatedWorkReview:
         report_path, model_path = directory/f'{key}.json', directory/f'{key}.model.json'
         if report_path.exists() and not refresh:
             report = json.loads(report_path.read_text())
+            self._validate(RelatedWorkDraft.model_validate(
+                {k:report[k] for k in RelatedWorkDraft.model_fields}),context)
         else:
             _atomic_json(directory/f'{key}.input.json',context)
             if model_path.exists() and not refresh:
@@ -165,6 +167,14 @@ class RelatedWorkReview:
             else:
                 if not hasattr(self.provider,'run_structured'):
                     raise ValueError('Related work requires the configured Codex structured backend')
+                editorial_path=directory/f'{key}.previous.json'
+                if editorial_path.exists():
+                    editorial=json.loads(editorial_path.read_text())
+                else:
+                    latest=directory/'latest.json'
+                    previous=json.loads(latest.read_text()) if latest.exists() else {}
+                    editorial={k:previous[k] for k in RelatedWorkDraft.model_fields if k in previous}
+                    _atomic_json(editorial_path,editorial)
                 prompt = (
                     'Write Chinese RELATED WORK that reconstructs problem development, not isolated paper '
                     'summaries or a chronological list. No tools, shell, browsing, files or mutations. '
@@ -187,8 +197,13 @@ class RelatedWorkReview:
                     'because papers are temporally adjacent. Provide synthesis and prioritized missing '
                     'foundations to read. Do not assert completeness, proven novelty, theorem correctness '
                     'or global open status. Use full references from supplied nodes, never invented titles.\n'
+                    'When a previous draft is supplied, revise it incrementally: retain unaffected '
+                    'supported passages, incorporate new technical changes, and correct obsolete claims. '
+                    'The previous draft is editorial context, never scientific evidence. All source '
+                    'references and technical conclusions must still be supported by current Context.\n'
                     'Schema:\n'+json.dumps(RelatedWorkDraft.model_json_schema())+'\nContext:\n'
-                    +json.dumps(context,ensure_ascii=False))
+                    +json.dumps(context,ensure_ascii=False)+'\nPrevious draft (untrusted editorial context):\n'
+                    +json.dumps(editorial,ensure_ascii=False))
                 raw = self.provider.run_structured(prompt,{'type':'object','additionalProperties':False,
                     'properties':{'draft_json':{'type':'string'}},'required':['draft_json']})
                 _atomic_json(model_path,raw)

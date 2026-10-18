@@ -35,6 +35,8 @@ class WeeklyProfile(StrictModel):
     extract: bool = True
     theory_gap_review: bool = False
     related_work_review: bool = False
+    field_dossiers: bool = False
+    automatic_discovery: bool = False
     max_gap_candidates: int = Field(default=3, ge=1, le=3)
 
     @classmethod
@@ -170,7 +172,10 @@ class WeeklyCollector:
                             and Path(v.source_path).is_file()
                             and v.text_path and Path(v.text_path).is_file()]
                     material=IngestionOutcome(paper,cached[-1],False) if cached else pdf
-                    outcome=self.controller.process(material,extract=True)
+                    if profile.automatic_discovery:
+                        outcome=self.controller.process(material,extract=True)
+                    else:
+                        outcome=self.controller.process(material,extract=True,discover=False)
                     item.update(status='EXTRACTED',coverage=outcome.processing.version.coverage.value,
                         result_ids=[r.id for r in outcome.processing.records if r.kind=='result'],
                         breakthrough_ids=outcome.breakthrough_ids,transfer_ids=outcome.transfer_ids,
@@ -193,6 +198,14 @@ class WeeklyCollector:
             except Exception as exc:
                 lineage_ready = False
                 errors.append({'stage':'related_work_review','error':f'{type(exc).__name__}: {exc}'})
+        fields = None
+        if profile.field_dossiers and profile.extract:
+            try:
+                from research_scout.workflows.fields import FieldDossiers
+                fields = FieldDossiers(self.archive,self.workspace).update()
+            except Exception as exc:
+                lineage_ready = False
+                errors.append({'stage':'field_dossiers','error':f'{type(exc).__name__}: {exc}'})
         gap_review = None
         if profile.theory_gap_review and profile.extract and lineage_ready:
             try:
@@ -205,6 +218,11 @@ class WeeklyCollector:
             'selection':'Keyword matching priority; not a scientific quality or novelty score.',
             'discovery_ran':discover,'discovered':discovered,'unique_candidates':len(candidates),'selected':len(selected),
             'remaining_pending':len(pending),'extract':profile.extract,'articles':articles,'errors':errors}
+        if fields is not None:
+            report['field_dossiers'] = {'index':'../fields/README.md','fields':[
+                {'id':f['field']['id'],'result_count':len(f['results']),
+                 'snapshot_id':f['snapshot_id'],'narrative_status':f['narrative']['status'],
+                 'updated':f['updated'],'changes':f['update_changes']} for f in fields]}
         if related_work is not None:
             report['related_work_review'] = {'report':'related-work/latest.md',
                                              'track_count':len(related_work['sections'])}
@@ -243,6 +261,15 @@ class WeeklyCollector:
             if item.get('analysis_errors'):
                 lines.append('- 下游分析待处理：'+'; '.join(item['analysis_errors']))
             lines += ['', '### 摘要（作者原文）','',item.get('abstract') or '未提供摘要。','']
+        if report.get('field_dossiers'):
+            lines += ['## 研究领域档案','',
+                      '[查看逐结果定量表、发展脉络与本次变更](../fields/README.md)','']
+            for field in report['field_dossiers']['fields']:
+                changes=field['changes']
+                lines += [f"- {field['id']}：{field['result_count']} 项结果；新增 {len(changes['added'])}、"
+                          f"变化 {len(changes['changed'])}、退出 {len(changes['removed'])}；"
+                          f"Related Work {field['narrative_status']}"]
+            lines += ['']
         if report.get('related_work_review'):
             lines += ['## 发展脉络与 Related Work','',
                 '[查看问题主线、跨论文比较和证据关系](related-work/latest.md)','']

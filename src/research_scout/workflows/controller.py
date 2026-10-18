@@ -25,9 +25,9 @@ class ScoutController:
         self.archive = archive
         self.pipeline = PaperPipeline(archive,cache_dir,provider,http_client)
 
-    def process(self, source, extract=True) -> DiscoveryOutcome:
+    def process(self, source, extract=True, *, discover=True) -> DiscoveryOutcome:
         outcome=DiscoveryOutcome(self.pipeline.process(source,extract=extract))
-        if not extract:
+        if not extract or not discover:
             return outcome
         for result in outcome.processing.records:
             if not isinstance(result,Result):

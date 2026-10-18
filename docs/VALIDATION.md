@@ -175,3 +175,41 @@ PDFs, and archive validation passes. Existing opportunities remain hypotheses.
 This is a source-supported first draft, not a complete related-work search or an
 independent check of the cited proofs. Weekly automation now updates this context
 before generating theoretical gap candidates when enabled.
+
+## Field maintenance as the primary workflow — 2026-10-19
+
+Added validated field/branch registries, offline result-level dossiers, optional
+own-version evidence-pinned result notes, conservative setting comparisons and
+parent-linked immutable snapshots. The result table distinguishes theorem,
+algorithmic and empirical records; unknown cost/oracle details remain unknown.
+Dossiers retain all matching results, while source-supported prose considers all
+extracted papers rather than silently dropping old sources after twenty papers.
+Model-written prose receives the prior draft as editorial context for incremental
+revision, without treating previous narrative as scientific evidence.
+
+The final suite passes **214 tests in 60.77 seconds**; Ruff and wheel build pass.
+New checks cover multi-field reuse, exact/inexact result separation, explicit
+branch-only membership, unchanged-input reuse, per-invocation deltas, source
+revision flags, conservative lower evidence coverage, stale result notes,
+wrong-owner evidence, invalid registries, retained A→B→A snapshots, interrupted
+publication recovery, cross-field narrative dependencies, historical source
+retention, CLI operation without a model, weekly stage order and explicit
+suppression of automated hypotheses. Comparison tests cover metrics, model,
+assumptions, quantifiers, unexpanded numbered assumptions, mathematical case,
+empirical/theory separation and immutable inputs; rate ordering remains
+UNASSESSED.
+
+The genuine independent library now has four field dossiers covering **21 unique
+results across 11 full papers**: Langevin/high-accuracy sampling 12, SGHMC 2,
+SFS 5 and discrete sampling 2. Seven source-reading annotations distinguish
+oracle access, initialization and scoped operation counts. All 70 cached evidence
+spans/quotations and PDF hashes were checked again; archive validation passes.
+Field updates leave canonical records unchanged, retain the two existing
+hypotheses, and produce no new revision or repeated additions on a no-op run.
+The actual weekly profile now maintains related work and dossiers, with both
+automatic discovery and theory-gap generation disabled. These checks establish
+attribution and software behavior, not independent theorem verification.
+
+The final wheel was also installed into a separate virtual environment and run
+from `/tmp`, outside the checkout. Workspace initialization, field configuration,
+offline dossier update and Markdown display all passed using the installed wheel.

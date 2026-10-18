@@ -59,3 +59,19 @@ is explicitly synthetic only. Exact Unicode text offsets anchor extracted eviden
 `integration.export_proposal(archive, opportunity_id, path)` writes Markdown
 accepted by Harness's proposal-review input, without importing Harness or
 changing its repository. Reverse import is a documented future contract.
+
+## Maintained field dossiers
+
+`workflows.fields.FieldRegistry` validates `fields.json`.
+`FieldDossiers(archive, workspace).update(field_id=None)` derives all selected
+result-level dossiers without a model or network. Returned `updated` and
+`update_changes` describe this invocation; persisted `changes` describe that
+snapshot's delta from its parent. `result_fingerprint(result)` binds optional
+ResultNote annotations to scientific content rather than bookkeeping timestamps.
+
+`comparison.field_comparison.compare_field_results(left, right)` is a pure
+conservative setting check; it never verifies implications or orders rates.
+`ScoutController.process(..., discover=False)` extracts without creating downstream
+breakthroughs, transfers or opportunities. Weekly collection and CLI ingestion
+default to this field-maintenance behavior; the controller's historical Python
+default stays compatible with explicit discovery clients.

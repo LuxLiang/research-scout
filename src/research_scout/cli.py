@@ -19,6 +19,8 @@ app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False,
     help='Evidence-grounded scientific discovery. Offline knowledge commands require no API key.')
 index_app = typer.Typer(help='Rebuild the disposable search and graph projection.')
 app.add_typer(index_app, name='index')
+fields_app = typer.Typer(help='Maintain research fields, result tables and related work.')
+app.add_typer(fields_app, name='fields')
 
 
 def serializable(value):
@@ -214,7 +216,8 @@ def doctor(ctx: typer.Context):
 @app.command()
 @guarded
 def ingest(ctx: typer.Context, source: str,
-           extract: Annotated[bool,typer.Option('--extract/--metadata-only',help='Run configured structured scientific extraction.')] = False):
+           extract: Annotated[bool,typer.Option('--extract/--metadata-only',help='Run configured structured scientific extraction.')] = False,
+           discover: Annotated[bool,typer.Option('--discover',help='Also create breakthrough/transfer hypotheses.')] = False):
     """Ingest DOI/arXiv/URL/local PDF or text; scientific extraction is explicit."""
     from research_scout.configuration import extraction_provider
     from research_scout.workflows.controller import ScoutController
@@ -222,7 +225,16 @@ def ingest(ctx: typer.Context, source: str,
     provider=None
     if extract:
         provider=extraction_provider(config)
-    emit(ScoutController(archive(ctx),cache_path(ctx.obj,config),provider).process(source,extract=extract))
+    from research_scout.workflows.weekly import _run_lock
+    with _run_lock(ctx.obj):
+        outcome=ScoutController(archive(ctx),cache_path(ctx.obj,config),provider).process(
+            source,extract=extract,discover=discover)
+        result=asdict(outcome)
+        if (ctx.obj/'fields.json').exists():
+            from research_scout.workflows.fields import FieldDossiers
+            reports=FieldDossiers(archive(ctx),ctx.obj).update()
+            result['field_dossiers']=[r['field']['id'] for r in reports]
+    emit(result)
 
 
 @app.command()
@@ -313,6 +325,69 @@ def eval(ctx: typer.Context):
         raise typer.Exit(1)
 
 
+@fields_app.command('configure')
+@guarded
+def fields_configure(ctx: typer.Context, source: Path):
+    """Install a validated field registry in this workspace."""
+    from research_scout.workflows.fields import FieldRegistry
+    from research_scout.workflows.weekly import _atomic_json, _run_lock
+    load_config(ctx.obj)
+    registry=FieldRegistry.model_validate_json(source.read_text())
+    with _run_lock(ctx.obj):
+        _atomic_json(ctx.obj/'fields.json',registry.model_dump(mode='json'))
+    emit({'configured':[f.id for f in registry.fields]})
+
+
+@fields_app.command('list')
+@guarded
+def fields_list(ctx: typer.Context):
+    """List configured research fields without model or network access."""
+    from research_scout.workflows.fields import FieldRegistry
+    emit(FieldRegistry.load(ctx.obj))
+
+
+@fields_app.command('update')
+@guarded
+def fields_update(ctx: typer.Context,
+                  field_id: Annotated[str | None,typer.Argument()] = None,
+                  refresh_related_work: Annotated[bool,typer.Option('--refresh-related-work')] = False):
+    """Update result dossiers offline; optionally refresh model-written prose."""
+    from research_scout.workflows.fields import FieldDossiers, FieldRegistry
+    from research_scout.workflows.weekly import _run_lock
+    config=load_config(ctx.obj)
+    registry=FieldRegistry.load(ctx.obj)
+    if field_id is not None and field_id not in {f.id for f in registry.fields}:
+        raise ValueError(f'Unknown field: {field_id}')
+    with _run_lock(ctx.obj):
+        if refresh_related_work:
+            from research_scout.configuration import extraction_provider
+            from research_scout.workflows.related_work import RelatedWorkReview
+            RelatedWorkReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
+                              extraction_provider(config)).run(refresh=True)
+        reports=FieldDossiers(archive(ctx),ctx.obj).update(field_id)
+    emit({'index':ctx.obj/'fields/README.md','fields':[
+        {'id':r['field']['id'],'result_count':len(r['results']),'snapshot_id':r['snapshot_id'],
+         'narrative_status':r['narrative']['status'],'updated':r['updated'],
+         'changes':r['update_changes']} for r in reports]})
+
+
+@fields_app.command('show')
+@guarded
+def fields_show(ctx: typer.Context,field_id: str,
+                markdown: Annotated[bool,typer.Option('--markdown')] = False):
+    """Read the latest maintained field dossier."""
+    from research_scout.workflows.fields import FieldRegistry
+    if field_id not in {f.id for f in FieldRegistry.load(ctx.obj).fields}:
+        raise ValueError(f'Unknown field: {field_id}')
+    path=ctx.obj/'fields'/field_id/('latest.md' if markdown else 'latest.json')
+    if not path.is_file():
+        raise ValueError('Field dossier not built; run scout fields update')
+    if markdown:
+        typer.echo(path.read_text())
+    else:
+        emit(json.loads(path.read_text()))
+
+
 @app.command()
 @guarded
 def related_work(ctx: typer.Context,
@@ -325,6 +400,10 @@ def related_work(ctx: typer.Context,
     with _run_lock(ctx.obj):
         result=RelatedWorkReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
                                  extraction_provider(config)).run(refresh=refresh)
+        if (ctx.obj/'fields.json').exists():
+            from research_scout.workflows.fields import FieldDossiers
+            dossiers=FieldDossiers(archive(ctx),ctx.obj).update()
+            result=dict(result,field_dossiers=[f['field']['id'] for f in dossiers])
     emit(result)
 
 

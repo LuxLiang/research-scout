@@ -47,7 +47,9 @@
       "discrete Langevin"
     ]
   },
-  "theory_gap_review": true,
+  "theory_gap_review": false,
   "max_gap_candidates": 3,
-  "related_work_review": true
+  "related_work_review": true,
+  "field_dossiers": true,
+  "automatic_discovery": false
 }

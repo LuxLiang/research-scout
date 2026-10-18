@@ -1,3 +1,7 @@
+The primary weekly workflow maintains [research fields](FIELDS.md). Gap review
+is an explicit research session; the sampling profile disables it by default.
+Existing hypotheses remain retained for future review.
+
 # Theory questions and gap review
 
 The research library is an input to discovery. `scout gaps` compares extracted

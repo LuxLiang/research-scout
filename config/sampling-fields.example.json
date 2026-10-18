@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0",
+  "fields": [
+    {
+      "id": "langevin",
+      "title": "Langevin 与高精度连续采样",
+      "question": "动力学收敛怎样转化为包含初始化、离散化和全部 oracle 成本的采样保证？",
+      "labels": [
+        "underdamped-langevin",
+        "overdamped-langevin",
+        "log-concave-sampling"
+      ],
+      "match_terms": [
+        "Langevin",
+        "log-concave",
+        "Hamiltonian Monte Carlo"
+      ],
+      "branches": [
+        {
+          "id": "dynamics",
+          "title": "连续动力学与收敛机制",
+          "question": "什么几何与阻尼条件支持哪些指标下的收敛？",
+          "match_terms": [
+            "continuous",
+            "dynamics",
+            "KL"
+          ]
+        },
+        {
+          "id": "implementation",
+          "title": "离散算法与完整查询复杂度",
+          "question": "达到指定分布精度需要哪些可执行查询？",
+          "match_terms": [
+            "proximal",
+            "sampler",
+            "discretization",
+            "Monte Carlo"
+          ]
+        }
+      ],
+      "exclude_labels": [
+        "discrete-sampling",
+        "sghmc"
+      ]
+    },
+    {
+      "id": "sghmc",
+      "title": "SGHMC 与随机梯度采样",
+      "question": "随机梯度噪声、稳定化与偏差如何影响收敛和完整成本？",
+      "labels": [
+        "sghmc"
+      ],
+      "match_terms": [
+        "SGHMC",
+        "stochastic gradient Hamiltonian"
+      ],
+      "branches": [
+        {
+          "id": "stability",
+          "title": "稳定性与非凸收敛",
+          "question": "taming、噪声与几何假设分别控制什么误差？",
+          "match_terms": [
+            "tamed",
+            "SGHMC",
+            "nonconvex"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sfs",
+      "title": "Schrödinger–Föllmer Sampling",
+      "question": "有限时间输运中，离散化、漂移估计与数据误差各自造成什么复杂度限制？",
+      "labels": [
+        "schrodinger-follmer"
+      ],
+      "match_terms": [
+        "Schrödinger",
+        "Föllmer",
+        "Schrodinger",
+        "Follmer"
+      ],
+      "branches": [
+        {
+          "id": "discretization",
+          "title": "精确漂移与离散化",
+          "question": "在明确正则性下，终端误差随步长与维度怎样变化？",
+          "match_terms": [
+            "exact",
+            "Euler",
+            "SRKSFS"
+          ]
+        },
+        {
+          "id": "estimated-drift",
+          "title": "估计漂移与总成本",
+          "question": "Monte Carlo、比值偏差和全部调用成本如何累积？",
+          "match_terms": [
+            "Monte Carlo",
+            "inexact",
+            "estimated"
+          ]
+        },
+        {
+          "id": "applications",
+          "title": "数据与策略应用",
+          "question": "经验目标与策略学习引入了哪些额外假设和误差？",
+          "match_terms": [
+            "empirical",
+            "policy",
+            "actor",
+            "critic",
+            "data"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "discrete-sampling",
+      "title": "Discrete Sampling",
+      "question": "离散状态空间中的混合、平稳偏差和校正成本如何比较？",
+      "labels": [
+        "discrete-sampling"
+      ],
+      "match_terms": [
+        "discrete distributions",
+        "discrete sampling",
+        "discrete Langevin"
+      ],
+      "branches": [
+        {
+          "id": "bias-and-mixing",
+          "title": "偏差与有限时间混合",
+          "question": "平稳误差与从指定初始化出发的完整采样复杂度有什么区别？",
+          "match_terms": [
+            "discrete",
+            "DULA",
+            "DMALA",
+            "Langevin"
+          ]
+        }
+      ]
+    }
+  ]
+}

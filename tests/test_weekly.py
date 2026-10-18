@@ -64,7 +64,7 @@ def test_full_text_extraction_uses_pdf_and_reports_downstream_errors(tmp_path):
             coverage=Coverage.FULL_TEXT),records=[]),breakthrough_ids=['b'],
             transfer_ids=['t'],opportunity_ids=['o'],analysis_errors=['Uncertain proof step'])
     worker.controller.process=process
-    report=worker.run(profile())
+    report=worker.run(profile(automatic_discovery=True))
     assert seen==[('https://arxiv.org/pdf/2610.00001v1',True)]
     assert report['articles'][0]['status']=='EXTRACTED'
     assert report['articles'][0]['coverage']=='FULL_TEXT'

@@ -2,7 +2,7 @@
 
 `scout weekly` discovers recent arXiv literature, deduplicates scientific versions,
 selects a bounded shortlist, caches available PDFs, extracts scientific records,
-runs comparisons/discovery and writes a local report. It preserves failed and
+maintains result tables and related work, and writes a local report. It preserves failed and
 overflow candidates for later runs. Selection is keyword priority, not scientific
 quality, truth or novelty assessment. Per-run and per-paper limits are explicit.
 
@@ -26,6 +26,7 @@ PDF/text versions, avoiding repeated downloads when the extraction needs another
 ```bash
 scout --workspace /path/to/library init
 cp config/sampling-weekly.example.json /path/to/library/tracking-profile.json
+scout --workspace /path/to/library fields configure config/sampling-fields.example.json
 scout --workspace /path/to/library weekly --since 365d --max-papers 1
 scout --workspace /path/to/library weekly
 # Resume existing candidates without repeating discovery:
@@ -108,12 +109,15 @@ Weekly collection performs literature discovery automatically and does not requi
 seed PDFs. No email or chat messages are sent by the local collector; its output
 is the persistent report and knowledge archive.
 
-## Theory-first discovery
+## Field maintenance; discovery on demand
 
-The sampling profile also enables [theory gap review](THEORY_GAPS.md) after paper
-processing. It first updates [related work and development tracks](RELATED_WORK.md),
-then proposes zero to three precise questions with source evidence,
-proof obligations, falsification tests and external arXiv prior-art leads. These
-are hypotheses with novelty UNDETERMINED; source coverage does not establish that
-a question is open. Run `scout --workspace PATH gaps` separately to review an
-existing library without downloading another batch.
+The sampling profile enables [related work](RELATED_WORK.md) followed by
+[field dossiers](FIELDS.md). It disables `automatic_discovery` and
+`theory_gap_review`: routine ingestion does not generate breakthrough/transfer
+opportunities or gap proposals. Reports link to the field index and include
+added, changed and removed result IDs for each maintained field.
+
+A failed narrative update is reported explicitly; current result tables can still
+be maintained with old prose labeled stale. Scientific records and prior
+opportunities remain preserved. Use `scout --workspace PATH gaps` when a separate
+theory-question review is wanted, or explicitly enable the discovery switches.

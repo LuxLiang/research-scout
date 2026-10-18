@@ -1,7 +1,7 @@
 # Research Scout
 
 <p align="center">
-  <img src="assets/research-crystallization.gif" alt="Scattered evidence characters gradually converge into a research paper with a blue loss curve." width="880" />
+  <img src="assets/research-crystallization.webp" alt="Research Scout: flowing evidence glyphs converge into a research note with a smooth blue curve, on a transparent background." width="960" />
 </p>
 
 <p align="center"><em>From scattered evidence to a clearer research picture.</em></p>
@@ -10,13 +10,13 @@ Research Scout — 科研探索项目，正在起步。
 
 ### Animation
 
-动画以散落的 `0`、`1`、`+`、`?` 等字符开始，逐渐向中央聚合，再逐行显现论文标题、正文和折线图，停留后循环播放。视觉与动画逻辑参考 [Autonomous Machine Learning Research](https://automlr.com/) 首页右侧的 “Research crystallization”。本仓库独立绘制动画，未打包原站代码或素材。
+透明背景上的字符沿弧线汇聚为一张研究卡片，依次显现标题、正文和连续曲线。独立设计的构图采用蓝色与青绿色、圆角卡片和细腻阴影，以 25 fps 播放，每轮约 12 秒，平滑淡出后重新开始。动画概念参考 [Autonomous Machine Learning Research](https://automlr.com/) 首页右侧的 “Research crystallization”。本仓库独立绘制动画，未打包原站代码或素材。
 
-GitHub README 无法运行 Canvas / JavaScript，因此使用 GIF 展示同样的演变过程。[查看静态版本](assets/research-crystallization.png)。
+README 使用支持完整 Alpha 透明度的动画 WebP，保留柔和边缘和顺滑的运动。[查看静态版本](assets/research-crystallization.png)。
 
 ### Regenerate
 
-需要 Python 3、Pillow 和 DejaVu Sans Mono 字体（字体路径可在脚本中调整）。
+需要 Python 3、Pillow 和 DejaVu 字体（字体路径可在脚本中调整）。
 
 ```bash
 python -m pip install -r requirements-animation.txt

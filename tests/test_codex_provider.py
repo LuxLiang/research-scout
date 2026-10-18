@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from research_scout.domain.models import Paper, PaperVersion
+from research_scout.domain.models import Paper, PaperVersion, Result, Scope
 from research_scout.extraction import CodexExecProvider, ConfigurationError
 
 
@@ -104,6 +104,7 @@ def test_process_failure_redacts_diagnostic_and_clears_stale_envelope():
             provider.extract(*inputs())
     assert "secret source token" not in str(error.value)
     assert provider.last_envelope is None
+    assert provider.last_raw_output is None
 
 
 def test_missing_output_rejected():
@@ -158,3 +159,67 @@ def test_unanchorable_quote_rejected(text, quote, locator):
         with pytest.raises(ConfigurationError, match="no records were accepted"):
             provider.extract(paper, version, text)
     assert provider.last_envelope is None
+
+
+def test_source_segments_cover_unicode_and_long_lines_exactly():
+    text = 'Δ\n' * 701 + 'long line λ' * 300 + '\n尾段'
+    segments = CodexExecProvider._source_segments(text)
+    assert ''.join(s['text'] for s in segments) == text
+    for s in segments:
+        start, end = map(int, s['span'].removeprefix('char:').split('-'))
+        assert text[start:end] == s['text']
+        assert len(s['text']) <= 900
+
+
+def test_selected_source_segment_is_copied_without_model_retyping():
+    paper, version, _ = inputs()
+    text = 'Result with PDF ligature ﬁ and new\nline. ' * 50
+    provider = CodexExecProvider()
+    with patch('research_scout.extraction.codex.subprocess.run', side_effect=runner(
+        response([evidence_record(None, 'segment:1')])
+    )):
+        record = provider.extract(paper, version, text)[0]
+    segment = provider._source_segments(text)[1]
+    assert record.quotation == segment['text']
+    assert record.locator == segment['span']
+    assert 'selected source segment=segment:1' in record.provenance
+
+
+@pytest.mark.parametrize('quote, locator', [
+    (None, 'segment:999'), ('invented', 'segment:0'),
+    (None, 'segment:-1'), (None, 'segment:00'),
+])
+def test_invalid_source_segment_and_conflicting_quote_fail(quote, locator):
+    provider = CodexExecProvider()
+    with patch('research_scout.extraction.codex.subprocess.run', side_effect=runner(
+        response([evidence_record(quote, locator)])
+    )):
+        with pytest.raises(ConfigurationError, match='invalid source segment'):
+            provider.extract(*inputs())
+    assert provider.last_envelope is None
+
+
+def test_rejected_model_envelope_remains_available_for_local_checkpoint():
+    provider = CodexExecProvider()
+    payload = {**response(), 'records_json': 'invalid encoded records'}
+    with patch('research_scout.extraction.codex.subprocess.run', side_effect=runner(payload)):
+        with pytest.raises(ConfigurationError, match='invalid structured extraction'):
+            provider.extract(*inputs())
+    assert provider.last_raw_output == payload
+    assert provider.last_envelope is None
+
+
+@pytest.mark.parametrize('status, expected', [
+    ('NOT_INDEPENDENTLY_VERIFIED', 'NOT_MATHEMATICALLY_VERIFIED'),
+    ('NOT_MATHEMATICALLY_VERIFIED', 'NOT_MATHEMATICALLY_VERIFIED'),
+    ('VERIFIED', 'VERIFIED'),  # Remains invalid: the pipeline must reject it.
+])
+def test_only_explicit_nonverification_synonym_is_normalized(status, expected):
+    result = Result(id='result:test', title='Empirical claim', paper_id='paper:test',
+        version_id='version:test', result_type='EMPIRICAL', statement='Author observation',
+        scope=Scope(domain='test', model='test', objective='test', metric='test', guarantee='test'),
+        verification_status=status)
+    CodexExecProvider._normalize_unverified_status([result])
+    assert result.verification_status == expected
+    if status != expected:
+        assert status in result.provenance

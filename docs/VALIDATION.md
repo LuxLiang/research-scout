@@ -97,3 +97,30 @@ passed **22 provider tests**. The wheel builds with the new modules.
 This extends the original HTTP-backend validation above: HTTP calls remain mocked;
 Codex saved-login execution has now been exercised. Genuine full-paper processing
 is an operational corpus run, not proof that its scientific extraction is correct.
+
+## Source-segment extraction follow-up
+
+The first genuine full-paper attempt was rejected because a model quotation was
+absent or ambiguous in the PDF-extracted text. No scientific records were published.
+The Codex backend now provides a complete indexed source and accepts an explicit
+segment selection. Original text and character spans are copied deterministically;
+invalid segment IDs or conflicting quotations fail. Legacy exact quotations remain
+supported. The backend retains the last structured model envelope in memory for
+callers to checkpoint rejected outputs without retaining CLI diagnostics.
+
+Follow-up verification: **132 tests passed in 46.71 seconds**. Ten added tests
+cover complete Unicode/long-line source segmentation, exact source-segment copying,
+invalid IDs, negative/noncanonical IDs, conflicting quotations, retained rejected
+envelopes and strict normalization of an explicit non-verification synonym.
+Verified statuses remain rejected by the pipeline. This validates
+source anchoring, not the mathematical interpretation of model-selected passages.
+
+The operational bootstrap subsequently saved ten distinct PDF/text sources and
+completed ten real ChatGPT-authenticated Codex first-pass extractions. The local
+corpus contains ten precise problems, ten mechanisms, nineteen results, twenty
+claims and sixty-one evidence records. Every PDF hash and every evidence
+quotation/character span was checked against the corresponding cached source;
+archive integrity checks passed. A transient download timeout was retried, and
+one explicit non-verification synonym was normalized with provenance retained.
+The corpus and its reports are outside the package checkout. These are successful
+source-attributed extractions, not independent mathematical verification.

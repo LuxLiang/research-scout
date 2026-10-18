@@ -67,8 +67,12 @@ An omitted `llm_model` preserves the Codex CLI's configured default model.
 There is no API-key fallback. The backend runs in an empty temporary directory,
 with a read-only sandbox, ephemeral sessions and a strict output envelope.
 Its scientific records still pass the same Pydantic/source-evidence validator.
-Evidence offsets can be calculated from unique verbatim source quotations;
-ambiguous or absent quotations fail instead of receiving invented locators.
+The complete source is indexed into exact contiguous segments. The model may select
+a supplied segment ID; Scout copies its original text and verified character span,
+avoiding PDF ligature/newline transcription errors. Invalid IDs and conflicting
+quotations fail. Unique verbatim quotations remain supported, with no fuzzy matching.
+Extraction uses a compact first pass; source attribution does not independently
+verify that a selected passage proves a scientific statement.
 `scout doctor` checks backend availability/login, without making a model call.
 
 Saved ChatGPT authentication can expire and usage limits can interrupt runs;

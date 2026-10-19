@@ -60,8 +60,15 @@ def proposal_markdown(archive, opportunity_id: str) -> str:
     lines.extend(['', '## Risks and counterexamples'])
     lines.extend(f'- {x}' for x in opportunity.counterexamples)
     lines.extend(['', opportunity.uncertainty, '', '## Initial validation plan',
-        opportunity.first_validation, '', '## Expected significance', opportunity.significance,
-        '', '## Historical progression'])
+        opportunity.first_validation, '', '## Expected significance', opportunity.significance])
+    from research_scout.opportunities.reviews import ResearchReviewService, research_review_markdown
+    reviews = ResearchReviewService(archive, archive.root.parent).reviews(opportunity.id)
+    if reviews:
+        lines += ['', '## Retained research reviews',
+                  'These later refinements qualify the original proposal above. '
+                  'Artifacts are content-pinned research work, not independently verified source theorems.']
+        lines += research_review_markdown(reviews)
+    lines += ['', '## Historical progression']
     for r in sorted(linked.values(), key=lambda r:r.id):
         if r.kind == 'event':
             lines.append(f'- {r.scientific_date}: {r.event_type.value}; {r.rationale} (`{r.id}`).')

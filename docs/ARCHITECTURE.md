@@ -34,3 +34,14 @@ optional source-pinned result notes, conservative setting comparisons and input
 change records. Their readable related work is backed by structured records;
 stale prose is marked while result tables can update offline. Field membership
 and thematic branches do not change canonical scientific scope or status.
+
+Theory-gap review defaults to all extracted papers' structured records and
+evidence, matching the related-work source range. Context/model failures remain
+explicit; there is no automatic fallback to a recent-paper subset.
+
+Research development is recorded as typed, content-fingerprinted reviews appended
+to Opportunity history. Findings separate conditional derivations, counterexample
+derivations, numerical diagnostics and prior-art review. Workspace-relative
+artifacts are checked against their hashes before publication. These entries do
+not promote scientific status or replace paper Evidence. Later gap prompts and
+Harness exports carry the retained refinements, including downranked scopes.

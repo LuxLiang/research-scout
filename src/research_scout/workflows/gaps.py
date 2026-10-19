@@ -86,8 +86,14 @@ class TheoryGapReview:
                                       for i in card['evidence_ids']]
             card['review_notes'] = [entry for entry in self.archive.get(card['opportunity_id']).history
                                     if entry.get('action') == 'PRIOR_ART_REVIEW']
+            from research_scout.opportunities.reviews import ResearchReviewService
+            card['research_reviews'] = ResearchReviewService(
+                self.archive, self.workspace).reviews(card['opportunity_id'])
 
-    def _context(self, *, include_related_work=True, paper_limit=20):
+    def _context(self, *, include_related_work=True, paper_limit=None):
+        if paper_limit is not None and (isinstance(paper_limit, bool)
+                                        or not isinstance(paper_limit, int) or paper_limit < 1):
+            raise ValueError('paper_limit must be a positive integer or None')
         papers = sorted([p for p in self.archive.list('paper') if p.extraction_status == 'EXTRACTED'],
                         key=lambda p: (str(p.published or ''), p.id), reverse=True)
         if paper_limit is not None:
@@ -112,7 +118,8 @@ class TheoryGapReview:
         context = {'papers': [p.model_dump(mode='json') for p in papers],
                 'records': [r.model_dump(mode='json') for r in sorted(evidence + scientific, key=lambda r: r.id)],
                 'extraction_limitations': limitations, 'known_external_metadata': prior,
-                'coverage': ('At most twenty extracted papers' if paper_limit==20 else 'All extracted papers in this archive') +
+                'coverage': (f'At most {paper_limit} extracted papers' if paper_limit is not None
+                             else 'All extracted papers in this archive') +
                     ', indexed evidence and first-pass records; not a complete literature survey.'}
         lineage = self.workspace / 'reports' / 'related-work' / 'latest.json'
         if include_related_work and lineage.is_file():
@@ -161,6 +168,14 @@ class TheoryGapReview:
         if not 1 <= max_candidates <= 3:
             raise ValueError('Theory review produces at most three candidates')
         context = self._context()
+        from research_scout.opportunities.reviews import ResearchReviewService
+        reviews = ResearchReviewService(self.archive, self.workspace)
+        context['prior_research_reviews'] = [
+            {'opportunity_id': opportunity.id, 'status': opportunity.status.value,
+             'reviews': reviews.reviews(opportunity.id)}
+            for opportunity in self.archive.list('opportunity')
+            if any(entry.get('action') == 'RESEARCH_REVIEW' for entry in opportunity.history)
+        ]
         directory = self.workspace / 'reports' / 'gaps'
         directory.mkdir(parents=True, exist_ok=True)
         fingerprint = sha256(json.dumps([context, max_candidates, external], sort_keys=True).encode()).hexdigest()[:20]
@@ -210,6 +225,9 @@ class TheoryGapReview:
                 'Exclude directions already covered by supplied sources; '
                 'cite their evidence or the exact supplied external metadata URLs. External abstracts '
                 'are retrieval leads, not full-text theorem verification. No numeric novelty scores.\n'
+                'Prior research reviews are retained system inferences, not theorem evidence. '
+                'Respect their narrowed scope, counterexamples and downranking; do not silently '
+                'restart an excluded broad formulation or promote their proof/novelty status.\n'
                 'GapBatch schema:\n' + json.dumps(GapBatch.model_json_schema()) + '\nContext:\n'
                 + json.dumps(context, ensure_ascii=False)
                 + '\nPrior opportunity decisions (review history, not theorem evidence):\n'
@@ -316,6 +334,10 @@ class TheoryGapReview:
                       '结果：' + ', '.join(c['closest_result_ids']), '',
                       '证据：' + ', '.join(c['evidence_ids']), '',
                       '### 证明障碍', '', c['obstruction'], '']
+            if c.get('research_reviews'):
+                from research_scout.opportunities.reviews import research_review_markdown
+                lines += ['> 下方复核更新研究方向；上方目标保留生成时的历史表述。']
+                lines += research_review_markdown(c['research_reviews'])
             if c.get('sources'):
                 lines += ['来源：' + '; '.join(
                     f"[{s['title']}]({s['url']})" if s['url'] else s['title'] for s in c['sources']), '']

@@ -12,16 +12,17 @@ from research_scout.storage import Archive
 from research_scout.workflows.gaps import TheoryGapReview
 
 
-def setup(tmp_path):
+def setup(tmp_path, *, paper_count=2):
     archive = Archive(tmp_path / 'knowledge')
     scope = Scope(domain='unit-test only', model='test kinetic model', objective='test source bound',
                   metric='test distance', guarantee='source guarantee', quantifiers=['all test inputs'])
     rows = []
-    for n in (1, 2):
+    for n in range(1, paper_count + 1):
         text = tmp_path / f'{n}.txt'
         text.write_text('UNIT TEST SOURCE EVIDENCE')
         rows.extend([
             Paper(id=f'paper:{n}', title=f'ARTIFICIAL UNIT TEST SOURCE {n}',
+                  published=(datetime(2026, 1, 1) + timedelta(days=n)).date(),
                   version_ids=[f'version:{n}'], extraction_status='EXTRACTED'),
             PaperVersion(id=f'version:{n}', title='Test v1', paper_id=f'paper:{n}',
                          version='v1', text_path=str(text), coverage='FULL_TEXT'),
@@ -70,6 +71,76 @@ class Sources:
             raise RuntimeError('test retrieval failure')
         return [SourcePaper(title='Artificial related metadata', arxiv_id='2610.99999',version='v1',
                             abstract='Unit-test-only related abstract', coverage='ABSTRACT_ONLY')]
+
+
+class ContextModel(Model):
+    """Capture actual generation inputs without invoking a real model."""
+
+    def __init__(self, cards):
+        super().__init__(cards)
+        self.contexts = []
+
+    def run_structured(self, prompt, schema):
+        context_text = prompt.split('\nContext:\n', 1)[1].split(
+            '\nPrior opportunity decisions', 1)[0]
+        self.contexts.append(json.loads(context_text))
+        return super().run_structured(prompt, schema)
+
+
+def test_full_corpus_reaches_gap_provider_and_old_result_invalidates_cache(tmp_path):
+    archive, card = setup(tmp_path, paper_count=23)
+    model = ContextModel([card])
+    worker = TheoryGapReview(archive, tmp_path, tmp_path/'sources', model, Sources())
+
+    first = worker.run(external=False)
+    assert first['source_paper_count'] == 23
+    context = model.contexts[0]
+    assert {p['id'] for p in context['papers']} == {f'paper:{n}' for n in range(1, 24)}
+    records = {r['id']: r for r in context['records']}
+    assert records['evidence:1']['quotation'] == 'UNIT TEST SOURCE EVIDENCE'
+    assert records['result:1']['statement'] == 'Artificial source result'
+    assert records['mechanism:1']['evidence_ids'] == ['evidence:1']
+    assert worker.run(external=False)['input_fingerprint'] == first['input_fingerprint']
+    assert model.calls == 1
+
+    # A foundational paper outside the former newest-twenty window changes.
+    oldest = archive.get('result:1')
+    archive.put(oldest.model_copy(update={'statement': 'Revised artificial foundational bound'}))
+    revised = worker.run(external=False)
+    assert revised['input_fingerprint'] != first['input_fingerprint']
+    assert model.calls == 2
+    revised_records = {r['id']: r for r in model.contexts[-1]['records']}
+    assert revised_records['result:1']['statement'] == 'Revised artificial foundational bound'
+    assert len(list((tmp_path/'reports/gaps').glob('*.input.json'))) == 2
+
+
+@pytest.mark.parametrize('limit', [1, 20])
+def test_explicit_partial_context_does_not_claim_full_corpus_coverage(tmp_path, limit):
+    archive, _ = setup(tmp_path, paper_count=23)
+    worker = TheoryGapReview(archive, tmp_path, tmp_path/'sources', Model([]), Sources())
+    context = worker._context(paper_limit=limit)
+    assert len(context['papers']) == limit
+    assert 'paper:1' not in {p['id'] for p in context['papers']}
+    assert 'evidence:1' not in {r['id'] for r in context['records']}
+    assert 'All extracted papers' not in context['coverage']
+
+
+def test_large_context_backend_failure_is_explicit_without_truncation_retry(tmp_path):
+    archive, _ = setup(tmp_path, paper_count=23)
+    model = ContextModel([])
+
+    def reject_context(prompt, schema):
+        ContextModel.run_structured(model, prompt, schema)
+        raise RuntimeError('Artificial backend context limit exceeded')
+
+    model.run_structured = reject_context
+    worker = TheoryGapReview(archive, tmp_path, tmp_path/'sources', model, Sources())
+    with pytest.raises(RuntimeError, match='context limit exceeded'):
+        worker.run(external=False)
+    assert model.calls == 1
+    assert len(model.contexts[0]['papers']) == 23
+    assert not (tmp_path/'reports/gaps/latest.json').exists()
+    assert not archive.list('opportunity')
 
 
 def test_real_references_hypothesis_only_and_repeat_is_cached(tmp_path):
@@ -216,3 +287,44 @@ def test_weekly_includes_review_link_and_reports_failures(tmp_path,monkeypatch):
     result = worker.run(profile)
     assert result['errors'][0]['stage'] == 'theory_gap_review'
     assert not result.get('theory_gap_review')
+
+
+def test_retained_research_review_invalidates_gap_cache_and_informs_generation(tmp_path):
+    from hashlib import sha256
+    from research_scout.opportunities.reviews import ResearchReview, ResearchReviewService
+
+    class CapturingModel(Model):
+        def run_structured(self, prompt, schema):
+            self.prompt = prompt
+            return super().run_structured(prompt, schema)
+
+    archive, card = setup(tmp_path)
+    model = CapturingModel([card])
+    worker = TheoryGapReview(archive,tmp_path,tmp_path/'sources',model,Sources())
+    original = worker.run(external=False)
+    oid = original['cards'][0]['opportunity_id']
+    artifact = tmp_path/'review.md'
+    artifact.write_text('SYNTHETIC test derivation; not independently verified.')
+    review = ResearchReview(
+        opportunity_id=oid, reviewer='synthetic test session', decision='DOWNRANK',
+        summary='SYNTHETIC exact baseline removes the proposed advantage.',
+        revised_question='SYNTHETIC investigate only a narrower input model.',
+        findings=[dict(kind='COUNTEREXAMPLE_DERIVATION', claim='SYNTHETIC obstruction',
+                       scope='test scope only', assumptions=['test moment condition'],
+                       metric='test distance', limitation='not a published theorem')],
+        remaining_work=['Check the narrower synthetic model.'],
+        source_evidence_ids=['evidence:1'],
+        artifacts=[dict(path='review.md',sha256=sha256(artifact.read_bytes()).hexdigest(),
+                        role='PROOF_NOTES')])
+    retained = ResearchReviewService(archive,tmp_path).record(review)
+    revised = worker.run(external=False)
+    assert revised['input_fingerprint'] != original['input_fingerprint']
+    assert model.calls == 2
+    assert 'prior_research_reviews' in model.prompt and review.summary in model.prompt
+    assert 'not theorem evidence' in model.prompt
+    assert revised['cards'][0]['research_reviews'][0]['decision'] == 'DOWNRANK'
+    assert archive.get(oid).history[:len(retained.history)] == retained.history
+    assert archive.get(oid).status == retained.status == 'HYPOTHESIS'
+    assert review.summary in (tmp_path/'reports/gaps/latest.md').read_text()
+    worker.run(external=False)
+    assert model.calls == 2

@@ -20,6 +20,12 @@ connects these results into a technical narrative.
 weekly profile maintains the field dossiers without automatically generating
 research opportunities.
 
+Theory review uses all extracted papers' structured results and evidence by
+default. [Research reviews](docs/RESEARCH_REVIEWS.md) append scoped derivations,
+counterexamples, diagnostics and source-pinned artifacts to an opportunity's
+history. They preserve uncertainty and are included in later gap review and
+Research Harness exports.
+
 The system complements [Research Harness](https://github.com/LuxLiang/research-harness):
 Scout maintains the literature context and supports idea development; Harness independently reviews proposals and
 executes and verifies research. Their repositories and workspaces stay separate.

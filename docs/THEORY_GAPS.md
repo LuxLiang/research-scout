@@ -48,10 +48,26 @@ The same input within seven days reuses the report. After a week, prior-art sear
 is repeated while the saved model proposals are reused. A refresh retains existing
 opportunity decisions/history rather than promoting rejected or investigated items.
 
-The model sees at most twenty extracted papers, their indexed evidence and
-first-pass scientific records, not every full PDF simultaneously. Optional
-`gap-prior-art.json` can supply a JSON list of verified SourcePaper metadata
-leads for exclusions/comparison; source coverage remains explicit.
+By default, generation includes every extracted paper in the archive, its
+indexed non-synthetic evidence and attributable first-pass scientific records.
+This is the full structured corpus, not every full PDF read simultaneously;
+metadata-only and unextracted papers are not represented as extracted results.
+Older foundational papers remain available alongside recent papers. Changes to
+their supplied records change the input fingerprint and invalidate the cached
+generation just as changes to recent papers do.
+
+The internal context builder accepts an explicit `paper_limit` for bounded
+inspection, and labels that context as limited. `scout gaps` and weekly gap review
+use the full corpus. Backend/context-size failures are reported explicitly;
+there is no silent retry with a newest-paper subset. Optional `gap-prior-art.json`
+can supply a JSON list of verified SourcePaper metadata leads for
+exclusions/comparison; source coverage remains explicit.
+
+Appended [research reviews](RESEARCH_REVIEWS.md) enter subsequent gap context as
+retained system inferences, including narrowed questions and counterexamples.
+They change the input fingerprint but do not become paper evidence or confirmed
+theorems. Reports and Harness exports retain these refinements alongside the
+original candidate formulation.
 
 ## External checks and their limits
 
@@ -78,7 +94,7 @@ Set these fields in `tracking-profile.json`:
 The weekly collector runs theory review after paper extraction and links its
 report from the weekly report. A review failure is reported explicitly without
 rolling back successful paper ingestion. Metadata-only collection skips theory
-review. The sampling example enables this stage; existing profiles default off.
+review. The sampling profile keeps this stage off unless explicitly enabled.
 
 An Opportunity may later be rejected with a reason, investigated, or exported
 through the existing Harness proposal interface. These steps retain the

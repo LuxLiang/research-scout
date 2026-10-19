@@ -175,6 +175,26 @@ def opportunities(ctx: typer.Context):
     emit(archive(ctx).list('opportunity'))
 
 
+@app.command('review-opportunity')
+@guarded
+def review_opportunity(ctx: typer.Context, source: Path):
+    """Append a validated research review with pinned workspace artifacts."""
+    from research_scout.opportunities.reviews import ResearchReview, ResearchReviewService
+    from research_scout.workflows.weekly import _run_lock
+    review = ResearchReview.model_validate(json.loads(source.read_text()))
+    with _run_lock(ctx.obj):
+        result = ResearchReviewService(archive(ctx), ctx.obj).record(review)
+    emit(result)
+
+
+@app.command('opportunity-reviews')
+@guarded
+def opportunity_reviews(ctx: typer.Context, opportunity_id: str):
+    """Read retained research findings without network or model calls."""
+    from research_scout.opportunities.reviews import ResearchReviewService
+    emit(ResearchReviewService(archive(ctx), ctx.obj).reviews(opportunity_id))
+
+
 @app.command('export')
 @guarded
 def export_command(ctx: typer.Context, opportunity_id: str,

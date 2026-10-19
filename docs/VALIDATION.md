@@ -213,3 +213,33 @@ attribution and software behavior, not independent theorem verification.
 The final wheel was also installed into a separate virtual environment and run
 from `/tmp`, outside the checkout. Workspace initialization, field configuration,
 offline dossier update and Markdown display all passed using the installed wheel.
+
+## Full-corpus gap context and retained research reviews — 2026-10-19
+
+Gap generation now defaults to every extracted paper's structured records and
+evidence, matching related-work coverage. Explicit bounded inspection is labeled
+accurately; model/context failures do not retry with a silently truncated corpus.
+Regressions exercise more than twenty sources, earliest-paper evidence, old-result
+cache invalidation and failure behavior.
+
+Typed research reviews retain scoped conditional derivations, counterexample
+derivations, diagnostics, prior-art findings and workspace artifact SHA-256 pins
+in append-only Opportunity history. Imports validate all artifacts and references
+before writing, are idempotent, and cannot promote novelty, verification,
+lifecycle status or numerical ranking. Later gap inputs/cache fingerprints and
+Harness exports include the retained refinements. Re-parsing prevents unvalidated
+Pydantic model copies from bypassing review gates.
+
+Executed **244 tests in 105.70 seconds**; Ruff and wheel build passed. Adversarial
+checks cover forged hashes, traversal, absolute paths, symlink escape, invalid
+references, atomic rejection, retained-history tampering, model-copy bypass,
+CLI import/read, export and review-triggered gap cache invalidation.
+
+In the real independent workspace, offline context contains **67 extracted papers,
+130 results and 590 evidence records**. SFS and discrete candidates each received
+one structured review; original history prefixes and revisions were retained.
+Repeated import leaves revisions unchanged. Their lifecycle remains HYPOTHESIS,
+novelty remains UNDETERMINED and all six numerical ranks remain unchanged. Archive
+validation passed. This validates persistence, coverage and attribution controls;
+it does not certify the research derivations or their novelty. No new model-backed
+gap batch was generated for this maintenance operation.

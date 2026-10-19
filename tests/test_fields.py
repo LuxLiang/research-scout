@@ -222,7 +222,9 @@ def test_related_work_does_not_drop_old_papers_after_twenty(tmp_path):
     for i in range(3,23):
         archive.put(Paper(id=f'p{i}',title=f'SYNTHETIC historical paper {i}',
                           published=date(2020,1,1),extraction_status='EXTRACTED',synthetic=True))
-    assert len(TheoryGapReview(archive,tmp_path,tmp_path/'sources',None)._context()['papers'])==20
+    gap = TheoryGapReview(archive,tmp_path,tmp_path/'sources',None)
+    assert len(gap._context()['papers'])==22
+    assert len(gap._context(paper_limit=20)['papers'])==20
     context=RelatedWorkReview(archive,tmp_path,tmp_path/'sources',None)._context()
     assert len(context['papers'])==22
     assert 'All extracted papers' in context['coverage']

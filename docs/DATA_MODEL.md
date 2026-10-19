@@ -40,3 +40,12 @@ pin a content fingerprint and own-version evidence; unknown cost and oracle
 fields remain null. Field snapshots preserve exact Result/Scope references,
 conservative comparison outcomes and parent-linked changes. Source-currentness,
 coverage and mathematical verification remain distinct. See [field dossiers](FIELDS.md).
+
+ResearchReview/ResearchFinding/ResearchArtifact are typed input envelopes for
+append-only `RESEARCH_REVIEW` entries in Opportunity history, not new canonical
+Result or Evidence kinds. Each review retains a deterministic `review_fingerprint`,
+scope, assumptions, metric, limitations and content-pinned local artifacts.
+Paper evidence references remain canonical references; artifact hashes and the
+review fingerprint are content metadata. Novelty is always UNDETERMINED, findings
+remain NOT_INDEPENDENTLY_VERIFIED and origin is SYSTEM_INFERENCE. Recording a review
+does not change lifecycle status or numerical ranking. See [research reviews](RESEARCH_REVIEWS.md).

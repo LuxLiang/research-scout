@@ -43,6 +43,8 @@ class CodexExecProvider:
             reason='AUTHENTICATION: check `codex login status` and renew the saved login if needed.'
         elif any(s in diagnostic for s in ('429 too many requests','usage limit','rate limit exceeded')):
             reason='RATE_LIMIT: the service rejected the request because of a usage or request limit.'
+        elif any(s in diagnostic for s in ('input_too_large','input exceeds the maximum length')):
+            reason='INPUT_LIMIT: the CLI input character limit was exceeded; use explicit windowed reading.'
         elif any(s in diagnostic for s in ('context window','context length','context_length_exceeded')):
             reason='CONTEXT_LIMIT: the supplied input exceeds the configured model context limit.'
         elif any(s in diagnostic for s in ('connection refused','failed to connect','dns error',

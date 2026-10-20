@@ -30,6 +30,7 @@ class TransferIdea(StrictModel):
     revisit_when: list[str] = Field(default_factory=list)
     target_result_ids: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(min_length=2)
+    source_passage_ids: list[str] = Field(default_factory=list)
     shared_structure: str
     adaptation: str = ''
     expected_gain: str = ''
@@ -172,6 +173,9 @@ class TransferReview:
         if len(batch.ideas) > max_candidates:
             raise ValueError('Transfer review exceeded the candidate limit')
         records = {r['id']: r for r in context['records']}
+        retrieval = context.get('retrieval', {})
+        passages = {p['id']: p for p in retrieval.get('source_passages', [])}
+        passages.update({p['id']: p for p in retrieval.get('candidate_reread', {}).get('source_passages', [])})
         papers = {p['id'] for p in context['papers']}
         seen = set()
         fields=context.get('field_index',{})
@@ -192,10 +196,16 @@ class TransferReview:
             return record
 
         for idea in batch.ideas:
+            if not set(idea.source_passage_ids) <= passages.keys():
+                raise ValueError('Transfer source passages must reference retrieved original text')
             source = get(idea.source_result_id, 'result')
             mechanism = get(idea.source_mechanism_id, 'mechanism')
             target = get(idea.target_problem_id, 'problem')
             targets = [get(i, 'result') for i in idea.target_result_ids]
+            owned_versions = {source['version_id']} | {r['version_id'] for r in targets}
+            owned_versions.update(get(e, 'evidence')['version_id'] for e in target['evidence_ids'])
+            if any(passages[p]['version_id'] not in owned_versions for p in idea.source_passage_ids):
+                raise ValueError('Transfer source passages must pin source or target versions')
             if mechanism['id'] not in source['mechanism_ids']:
                 raise ValueError('Transfer source result must actually use the source mechanism')
             if target['id'] in source['problem_ids']:
@@ -266,13 +276,24 @@ class TransferReview:
             for mid in sorted({mid for r in focused_results for mid in r['mechanism_ids']}
                               & supplied_mechanisms)]
         context['field_pairs_to_review']=self._field_pairs(context,max_field_pairs)
-        payload = dict(version=3, max_candidates=max_candidates, context=context)
+        from research_scout.retrieval.context import ResearchContext
+        retrieval = ResearchContext(self.archive, self.cache_dir)
+        context['retrieval'] = retrieval.prepare(context)
+        payload = dict(version=5, max_candidates=max_candidates, context=context)
         key = sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:20]
         directory = self.workspace/'reports'/'transfers'
         report_path = directory/f'{key}.json'
         directory.mkdir(parents=True, exist_ok=True)
+        reader = None
         if report_path.exists() and not refresh:
             report = json.loads(report_path.read_text())
+            cached_reread = report.get('retrieval', {}).get('candidate_reread')
+            if cached_reread is not None:
+                context['retrieval']['candidate_reread'] = {
+                    **cached_reread,
+                    'source_passages': [retrieval.source_index.get(p['id'])
+                                        for p in cached_reread['source_passages']],
+                }
             batch = TransferIdeas.model_validate({k: report[k] for k in TransferIdeas.model_fields if k in report})
             self._validate(batch, context, max_candidates)
         else:
@@ -299,6 +320,14 @@ class TransferReview:
                     'CANDIDATE if retained in ideas, otherwise NO_SUPPORTED_IDEA with evidence limitations, '
                     'incompatibilities or candidate-budget limitations; never fabricate an application. '
                     'Use mechanism input_objects, output_guarantees and reusable_steps when available. '
+                    'retrieval provides multi-channel ranked leads and original child-to-parent source '
+                    'windows. The entire scientific inventory remains present; ranked hits are not an '
+                    'exhaustive literature review or proof of applicability. Inspect retrieved hypotheses, '
+                    'assumptions and surrounding proof context, including cross-domain leads. '
+                    'source_passage_ids may cite only supplied retrieved passage IDs; these are source '
+                    'context and never new canonical Evidence IDs. Keep evidence_ids grounded in the '
+                    'supplied canonical evidence. State when useful raw passages need a separate '
+                    'evidence-extraction pass before a stronger claim can be supported. '
                     'Problem open_questions and difficulty_hypotheses express uncertainty, not established '
                     'barriers. An explicit bottleneck is NEVER a prerequisite. The obstacle may be unknown '
                     'and discovered or revised during an attempt; consider targets, mathematical structures, '
@@ -335,8 +364,33 @@ class TransferReview:
                     'reasons and explicit coverage limitations.\nSchema:\n'
                     + json.dumps(TransferIdeas.model_json_schema()) + '\nContext:\n'
                     + json.dumps(context, ensure_ascii=False))
+                from research_scout.workflows.large_context import LargeContextReview, PROMPT_BUDGET
+                if len(prompt) > PROMPT_BUDGET:
+                    reader = LargeContextReview(self.provider,directory,key)
+                    projected,reverse = reader.prepare(context,refresh=refresh)
+                    prompt = (prompt.rsplit('\nContext:\n',1)[0]
+                        + '\nIdentifiers in this context are reversible local aliases. Return exactly '
+                          'the supplied aliases; the program restores canonical IDs before validation. '
+                          'Evidence passage summaries are model reading notes, not original quotations. '
+                          'Candidates will undergo a second pass with original evidence.\nContext:\n'
+                        + json.dumps(projected,ensure_ascii=False,separators=(',',':')))
+                    if len(prompt)>PROMPT_BUDGET:
+                        raise ValueError('Complete synthesis input exceeds the prompt budget after windowed reading')
                 raw = self.provider.run_structured(prompt, {'type': 'object', 'additionalProperties': False,
                     'properties': {'batch_json': {'type': 'string'}}, 'required': ['batch_json']})
+                if reader is not None:
+                    _atomic_json(directory/f'{key}.synthesis.model.json',raw)
+                    raw = reader.restore(raw,reverse)
+                initial = TransferIdeas.model_validate_json(raw['batch_json'])
+                self._validate(initial, context, max_candidates)
+                reread = retrieval.reread(initial, context)
+                context['retrieval']['candidate_reread'] = reread
+                if reader is not None or reread['source_passages']:
+                    if reader is None:
+                        reader = LargeContextReview(self.provider, directory, key)
+                    _atomic_json(directory/f'{key}.reread-input.json', reread)
+                    windows = context['retrieval']['source_passages'] + reread['source_passages']
+                    raw = reader.ground(raw,context,TransferIdeas.model_json_schema(), source_passages=windows)
                 _atomic_json(directory/f'{key}.model.json', raw)
                 if set(raw) != {'batch_json'}:
                     raise ValueError('Invalid transfer review model envelope')
@@ -348,9 +402,19 @@ class TransferReview:
                 source_paper_count=len(context['papers']), focus_paper_ids=context['focus_paper_ids'],
                 field_index=context.get('field_index',{}),
                 techniques_to_review=context['techniques_to_review'],
+                retrieval=context['retrieval'],
                 evidence_index={r['id']: r for r in context['records'] if r['id'] in used},
                 paper_index={p['id']: p for p in context['papers']},
                 novelty='UNDETERMINED', external_prior_art_searched=False)
+            if reader is not None and reader.summary_windows:
+                report['reading_protocol'] = dict(mode='WINDOWED_EVIDENCE_AND_ORIGINAL_GROUNDING',
+                    evidence_windows=reader.summary_windows,
+                    source_evidence_count=sum(r['kind']=='evidence' for r in context['records']),
+                    original_candidate_evidence_resupplied=reader.grounding_performed)
+                report['limitations'].append('完整原文证据已分批读取；综合阶段使用模型阅读摘要，'
+                    '候选另经原文证据归属复核。摘要与复核均不构成独立数学验证。')
+            report['limitations'].append('原文检索只回读命中片段及父级上下文；未命中、缺失或过期来源见检索记录。'
+                '检索排名和模型复核均不构成数学证明或完整查新。')
             _atomic_json(report_path, report)
         _atomic_json(directory/'latest.json', report)
         markdown = self._markdown(report)
@@ -363,6 +427,20 @@ class TransferReview:
         lines = ['# 新技术驱动的老问题探索', '',
                  f"覆盖 {report['source_paper_count']} 篇已抽取论文；{len(report['ideas'])} 个候选。",
                  '以下均为未验证假说；未进行外部先例检索，新颖性未确定。', '']
+        if report.get('reading_protocol'):
+            protocol=report['reading_protocol']
+            lines += [f"读取方式：{protocol['source_evidence_count']} 段原文证据分 "
+                f"{protocol['evidence_windows']} 批读取；综合使用模型阅读摘要，候选再对照原文。", '']
+        if report.get('retrieval'):
+            retrieval=report['retrieval']
+            lines += [f"检索：{len(retrieval['queries'])} 项查询；原文索引 "
+                f"{retrieval['corpus_manifest']['indexed_versions']} 个版本。完整结构化记录保留，原文回读为部分覆盖。", '']
+            if retrieval['corpus_manifest']['errors']:
+                lines += [f"原文索引有 {len(retrieval['corpus_manifest']['errors'])} 项缺失或校验问题，详见 JSON 检索记录。", '']
+            reread = retrieval.get('candidate_reread', {})
+            if reread:
+                lines += [f"候选原文回读：{len(reread['source_passages'])} 段；"
+                    '检索未命中不代表原文不存在相应技术。', '']
         for idea in report['ideas']:
             lines += [f"## {idea['title']}", '',
                 f"- 来源结果：{idea['source_result_id']}；机制：{idea['source_mechanism_id']}",
@@ -381,6 +459,8 @@ class TransferReview:
                     continue
                 lines.append(f"- {label}：" + ('；'.join(value) if isinstance(value, list) else value))
             lines += [f"- 证据：{', '.join(idea['evidence_ids'])}", '']
+            if idea.get('source_passage_ids'):
+                lines += [f"- 原文回读片段：{', '.join(idea['source_passage_ids'])}", '']
         lines += ['## 新技术探索记录', '']
         for review in report.get('technique_reviews', []):
             lines.append(f"- {review['source_mechanism_id']}：{review['outcome']}；{review['rationale']}")

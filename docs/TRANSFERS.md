@@ -32,6 +32,13 @@ revisit condition does not prove that it has been met.
 
 ## Trigger and inspect exploration
 
+[Research RAG](RETRIEVAL.md) supplies ranked leads and original source windows
+while retaining the complete extracted inventory. Candidate adaptations trigger
+a second retrieval at source and target versions. Model grounding receives the
+original evidence and source context and may narrow or remove ideas. Reports
+distinguish source-passage references from canonical Evidence IDs and record
+missing sources and partial-reading coverage.
+
 Incremental ingestion with discovery enabled explores extracted mechanisms even
 if the breakthrough analysis is inconclusive. Offline exploration is available
 without a model, using explicit archived structures, scope matches and proof roles:
@@ -125,3 +132,29 @@ scout --workspace /path/to/library transfer-review --max-field-pairs 12
 Field configuration and selected pairs are included in the input fingerprint.
 Rotation can therefore trigger a fresh review even when the literature is
 unchanged. Context or backend failure cannot be recorded as successful coverage.
+
+## Large-library reading
+
+The inspected Codex CLI rejects a turn longer than 1,048,576 characters. Scout
+uses an explicit staged protocol when the transfer prompt exceeds a conservative
+one-million-character budget; it does not switch to a recent-paper subset.
+
+Every original Evidence record is read in a bounded window. Each window must
+return exactly one short reading note per supplied evidence ID; missing,
+duplicate or invented IDs fail before synthesis. Validated windows are retained
+and reusable. Reading notes are model inferences, never canonical Evidence.
+
+Synthesis receives all extracted scientific records and their scopes, evidence
+locator/version/hash metadata and reading notes. Bookkeeping/empty defaults and
+redundant paper-level first-pass summary arrays are omitted from this model
+projection; the complete input snapshot remains retained. Long identifiers are
+reversibly aliased for transport, then restored before scientific validation.
+If the complete projection still exceeds the budget, the review fails explicitly.
+
+Before publication, a separate grounding pass receives each proposed candidate's
+original scientific records, full cited quotations and source bibliography. It
+may narrow or remove candidates, but cannot introduce unseen source/target
+triples or cite records outside that pass. The normal canonical attribution and
+coverage gates then run on the final candidates. Model grounding checks source
+attribution, not independent mathematical correctness. Reports describe this
+reading protocol and retain input, passage, synthesis and grounding checkpoints.

@@ -92,8 +92,11 @@ that a particular scheduled-job environment works.
 
 Codex process failures now report fixed categories (`READ_ONLY_STATE`,
 `AUTHENTICATION`, `RATE_LIMIT`, `CONTEXT_LIMIT`, `NETWORK`, `MODEL_ACCESS` or
-`UNKNOWN`) without printing raw CLI diagnostics, source text or credentials.
+`INPUT_LIMIT` or `UNKNOWN`) without printing raw CLI diagnostics, source text or credentials.
 Final error diagnostics take precedence over nonfatal startup warnings.
+`INPUT_LIMIT` identifies the CLI's per-turn character limit separately from the
+model's token context limit. Large transfer reviews use the explicit
+[windowed reading and original-evidence grounding protocol](TRANSFERS.md#large-library-reading).
 
 Saved ChatGPT authentication can expire and usage limits can interrupt runs;
 those are explicit retry failures. Do not put authentication files in GitHub.

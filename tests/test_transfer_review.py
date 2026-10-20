@@ -35,8 +35,15 @@ def setup(tmp_path):
 class Model:
     def __init__(self, ideas):
         self.ideas, self.calls = ideas, 0
+        self.grounding_calls = 0
 
     def run_structured(self, prompt, schema):
+        if prompt.startswith('Ground these unverified'):
+            self.grounding_calls += 1
+            assert 'untrusted data' in prompt and 'Retrieved original source windows' in prompt
+            batch = json.loads(prompt.split('\nCandidates:\n', 1)[1].split(
+                '\nOriginal source records and evidence:\n', 1)[0])
+            return {'batch_json': json.dumps(batch)}
         self.calls += 1
         assert 'untrusted data' in prompt and 'entire library' in prompt
         assert schema['additionalProperties'] is False

@@ -158,18 +158,20 @@ class PaperPipeline:
         temporary.replace(path)
 
     def _retrieve(self, paper: Paper) -> list[Record]:
-        records: dict[str, Record] = {}
-        # Multiple exact words avoid a full-title AND query hiding historical context.
-        words = [word for word in re.findall(r"[\w-]+", paper.title) if len(word) > 3][:8]
-        for query in words + paper.labels[:8]:
-            for record in self.archive.search(query):
-                records[record.id] = record
-                for neighbor in self.archive.traverse(record.id, depth=1):
-                    records[neighbor.id] = neighbor
+        from research_scout.retrieval.fusion import ResearchRetriever
+        archive_records = self.archive.list()
+        by_id = {record.id: record for record in archive_records}
+        query = ' '.join([paper.title, *paper.labels])
+        hits = ResearchRetriever(archive_records).search(query, top_k=48)
+        records = {hit['id']: by_id[hit['id']] for hit in hits}
+        # Explicit existing identities stay in context independently of lexical rank.
         for record_id in paper.problem_ids + paper.mechanism_ids + paper.bottleneck_ids:
-            records[record_id] = self.archive.get(record_id)
-            for record in self.archive.traverse(record_id, depth=2):
-                records[record.id] = record
+            records[record_id] = by_id[record_id]
+            for evidence_id in by_id[record_id].evidence_ids:
+                records[evidence_id] = by_id[evidence_id]
+        for record in list(records.values()):
+            for evidence_id in record.evidence_ids:
+                records[evidence_id] = by_id[evidence_id]
         return sorted(records.values(), key=lambda record: record.id)
 
     def _reuse_mechanisms(self, records: list[Record]) -> list[Record]:

@@ -11,6 +11,11 @@ problem**. It retains exploratory connections, concrete transfer hypotheses and
 validation plans; unknown bottlenecks are welcome. Attempts progressively clarify
 both the technique's uses and the problem's difficulty. See [technical exploration](docs/TRANSFERS.md).
 
+[Research retrieval](docs/RETRIEVAL.md) combines lexical, structural and reference
+recall, then reopens version-pinned source paragraphs around a proposed bridge.
+Reading context remains separate from mathematical verification and canonical
+scientific evidence.
+
 Research fields provide living related work: problem
 branches, quantitative theorem/result tables, source-supported development tracks
 and a history of what changed. Papers and exact source versions provide evidence.

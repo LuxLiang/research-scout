@@ -212,6 +212,48 @@ def rebuild(ctx: typer.Context):
     emit({'indexed_records':archive(ctx).rebuild()})
 
 
+@index_app.command('sources')
+@guarded
+def index_sources(ctx: typer.Context):
+    """Rebuild source passages with exact version/hash/character provenance."""
+    from research_scout.retrieval.sources import SourceIndex
+    config = load_config(ctx.obj)
+    index = SourceIndex(cache_path(ctx.obj, config)/'retrieval'/'sources.sqlite3')
+    emit(index.rebuild(archive(ctx).list()))
+
+
+@index_app.command('retrieve')
+@guarded
+def retrieve(ctx: typer.Context, query: str,
+             top_k: Annotated[int, typer.Option('--top-k', min=1, max=50)] = 8,
+             paper_id: Annotated[list[str] | None, typer.Option('--paper-id')] = None,
+             version_id: Annotated[list[str] | None, typer.Option('--version-id')] = None):
+    """Inspect ranked records and original source windows without a model call."""
+    from research_scout.retrieval.fusion import ResearchRetriever
+    from research_scout.retrieval.sources import SourceIndex
+    config = load_config(ctx.obj)
+    records = archive(ctx).list()
+    index = SourceIndex(cache_path(ctx.obj, config)/'retrieval'/'sources.sqlite3')
+    manifest = index.rebuild(records)
+    passages = index.search(query, top_k=top_k, paper_ids=paper_id, version_ids=version_id)
+    # Verify source artifacts again before returning retained cached text.
+    passages = [{**index.get(p['id']), 'score': p['score']} for p in passages]
+    emit(dict(source_index=manifest, source_passages=passages,
+              record_hits=ResearchRetriever(records).search(query, top_k=top_k),
+              qualification='Retrieval candidates, not scientific verification; filters apply to source passages.'))
+
+
+@index_app.command('eval')
+@guarded
+def evaluate_retrieval():
+    """Run labeled SYNTHETIC retrieval regressions, without a model or network."""
+    from research_scout.retrieval.evaluation import run_retrieval_evaluation
+    report = run_retrieval_evaluation()
+    emit(report)
+    if report['errors']:
+        raise typer.Exit(1)
+
+
 @app.command()
 @guarded
 def doctor(ctx: typer.Context,

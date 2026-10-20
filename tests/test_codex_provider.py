@@ -282,3 +282,11 @@ def test_doctor_live_probe_is_minimal_and_has_separate_readiness(tmp_path,failur
     assert output['model_check']['archive_contents_sent'] is False
     assert result.exit_code==(1 if failure else 0)
     assert output['model_check']['status']==('FAILED' if failure else 'PASSED')
+
+
+def test_cli_character_limit_is_distinct_from_model_context_limit():
+    message=CodexExecProvider._failure_message(1,
+        'Error: turn/start failed: Input exceeds the maximum length of 1048576 characters. '
+        'data: {"input_error_code":"input_too_large"}')
+    assert 'INPUT_LIMIT' in message and 'windowed reading' in message
+    assert 'UNKNOWN' not in message

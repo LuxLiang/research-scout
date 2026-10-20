@@ -38,6 +38,13 @@ updates. SQLite FTS5 is a disposable projection. Stable IDs do not encode file
 paths; aliases and explicit merge/split records preserve historical references.
 Sources and extracted text live in configurable caches outside code.
 
+Research RAG adds fused lexical/structure/reference recall and a separate
+disposable original-text index. Child matches expand to parent source windows
+with exact version/hash/character provenance. Transfer candidates are reread at
+their source/target versions before grounding. The complete structured inventory
+and evidence-reading protocol are retained; retrieval coverage is reported
+separately. See [retrieval design and upstream references](RETRIEVAL.md).
+
 Each workflow retrieves history before proposing records. Structured extraction
 is staged and validated before canonical promotion. Unknown comparisons retain
 proof obligations. New paper versions preserve the old version and flag dependent

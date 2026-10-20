@@ -6,7 +6,12 @@
 
 <p align="center"><em>From scattered evidence to a clearer research picture.</em></p>
 
-Research Scout maintains **research fields as living related work**: problem
+Research Scout asks **whether a newly available technique can advance an older
+problem**. It retains exploratory connections, concrete transfer hypotheses and
+validation plans; unknown bottlenecks are welcome. Attempts progressively clarify
+both the technique's uses and the problem's difficulty. See [technical exploration](docs/TRANSFERS.md).
+
+Research fields provide living related work: problem
 branches, quantitative theorem/result tables, source-supported development tracks
 and a history of what changed. Papers and exact source versions provide evidence.
 
@@ -18,7 +23,8 @@ connects these results into a technical narrative.
 
 [Theory gap review](docs/THEORY_GAPS.md) remains available on demand. The sampling
 weekly profile maintains the field dossiers without automatically generating
-research opportunities.
+canonical research opportunities. It does propose source-grounded potential
+[technical transfers](docs/TRANSFERS.md) in its weekly report.
 
 Theory review uses all extracted papers' structured results and evidence by
 default. [Research reviews](docs/RESEARCH_REVIEWS.md) append scoped derivations,

@@ -1,5 +1,12 @@
 # Knowledge evolution
 
+The research exploration graph also retains New technique → potential use →
+existing problem → attempt → new understanding. Problem difficulty need not be
+known in advance. Exploratory leads preserve attributable goal/structure/proof-role
+connections and a next action; they may later develop into transfer hypotheses
+and bridge propositions with validation plans. Attempt maturity does not alter
+the problem's derived scientific status. See [technical exploration](TRANSFERS.md).
+
 An event log records problem posing, bottleneck discovery, partial progress,
 mechanism introduction, scoped resolution, challenges, reopening and supersession.
 Events are append-only; a correction references a prior event rather than editing

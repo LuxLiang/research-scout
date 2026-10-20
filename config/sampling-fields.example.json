@@ -140,6 +140,256 @@
           ]
         }
       ]
+    },
+    {
+      "id": "langevin-overdamped",
+      "parent_id": "langevin",
+      "title": "过阻尼 Langevin 与 ULA/LMC",
+      "question": "步长、稳态偏差和初始化如何决定终态采样误差？",
+      "result_match_terms": [
+        "overdamped",
+        "ULA",
+        "LMC",
+        "unadjusted Langevin",
+        "Lipschitz LMC"
+      ]
+    },
+    {
+      "id": "langevin-kinetic",
+      "parent_id": "langevin",
+      "title": "欠阻尼动力学、耦合与动理学收缩",
+      "question": "摩擦、退化噪声与非凸几何怎样控制收缩及离散误差？",
+      "result_match_terms": [
+        "underdamped",
+        "kinetic",
+        "hypocoercive",
+        "hypocoercivity",
+        "OBABO",
+        "tKLMC",
+        "Kantorovich",
+        "friction"
+      ]
+    },
+    {
+      "id": "sampling-proximal",
+      "parent_id": "langevin",
+      "title": "Proximal、RGO 与复合采样",
+      "question": "如何把局部强对数凹 oracle 转成完整采样复杂度？",
+      "result_match_terms": [
+        "proximal",
+        "RGO",
+        "restricted Gaussian",
+        "composite",
+        "finite sum"
+      ]
+    },
+    {
+      "id": "sampling-functional",
+      "parent_id": "langevin",
+      "title": "功能不等式、非凸几何与混合",
+      "question": "Poincaré、LSI 和 Fisher 信息控制哪些指标与初始化代价？",
+      "result_match_terms": [
+        "Poincare",
+        "log Sobolev",
+        "LSI",
+        "Fisher information",
+        "nonconvex",
+        "non convex"
+      ]
+    },
+    {
+      "id": "sampling-high-accuracy",
+      "parent_id": "langevin",
+      "title": "高精度离散化、随机中点与概率流",
+      "question": "高阶或随机离散化如何改变精度、维度和总查询成本？",
+      "result_match_terms": [
+        "midpoint",
+        "high accuracy",
+        "probability flow",
+        "DPOM",
+        "DPUM",
+        "polylogarithmic",
+        "intrinsic dimension"
+      ]
+    },
+    {
+      "id": "sghmc-stability",
+      "parent_id": "sghmc",
+      "title": "SGHMC 稳定化、矩控制与非凸收敛",
+      "question": "taming 和 Lyapunov 条件怎样给出稳定性及非渐近误差？",
+      "result_match_terms": [
+        "tamed",
+        "taming",
+        "stability",
+        "moment",
+        "nonconvex",
+        "non convex",
+        "tKLMC"
+      ]
+    },
+    {
+      "id": "sghmc-variance-reduction",
+      "parent_id": "sghmc",
+      "title": "随机梯度方差缩减与可观测量估计",
+      "question": "方差缩减如何改善终态分布或时间平均 MSE 的完整成本？",
+      "result_match_terms": [
+        "variance reduction",
+        "variance reduced",
+        "SVRG",
+        "MSE",
+        "Poisson",
+        "finite sum"
+      ]
+    },
+    {
+      "id": "sghmc-noise-bias",
+      "parent_id": "sghmc",
+      "title": "随机梯度噪声、稳态偏差与 oracle 误差",
+      "question": "梯度噪声、噪声协方差估计和 oracle 误差如何传入目标偏差？",
+      "result_match_terms": [
+        "stochastic gradient",
+        "noise",
+        "stationary error",
+        "stationary bias",
+        "oracle",
+        "randomized drift"
+      ]
+    },
+    {
+      "id": "sfs-exact-drift",
+      "parent_id": "sfs",
+      "title": "SFS 精确漂移与高阶离散化",
+      "question": "精确漂移下的 Euler 与高阶算法依赖哪些正则性与常数？",
+      "result_match_terms": [
+        "exact drift",
+        "SRKSFS",
+        "Runge Kutta",
+        "Euler terminal"
+      ]
+    },
+    {
+      "id": "sfs-estimated-drift",
+      "parent_id": "sfs",
+      "title": "SFS 漂移估计、比值偏差与总成本",
+      "question": "Monte Carlo 漂移估计与密度正则化怎样影响总复杂度？",
+      "result_match_terms": [
+        "Monte Carlo",
+        "estimated drift",
+        "inexact drift",
+        "density ratio",
+        "regularized SFS"
+      ]
+    },
+    {
+      "id": "sfs-unbiased",
+      "parent_id": "sfs",
+      "title": "多层次、去偏与无偏期望估计",
+      "question": "怎样同时保证无偏性、有限方差和可控计算成本？",
+      "result_match_terms": [
+        "unbiased",
+        "debias",
+        "multilevel",
+        "renewal",
+        "mixed observable"
+      ]
+    },
+    {
+      "id": "sfs-learned-control",
+      "parent_id": "sfs",
+      "title": "神经控制、扩散桥与 score 学习",
+      "question": "控制近似、IPF 迭代和 score 误差如何累积到终端误差？",
+      "result_match_terms": [
+        "neural",
+        "IPF",
+        "bridge",
+        "score",
+        "optimal control",
+        "policy",
+        "STL"
+      ]
+    },
+    {
+      "id": "sfs-weak-conditioning",
+      "parent_id": "sfs",
+      "title": "弱正则、正则化一致性与条件化过程",
+      "question": "弱假设、早停和生存条件化下分别能得到哪些极限与有限时间保证？",
+      "result_match_terms": [
+        "weak",
+        "positive density",
+        "regularized targets",
+        "QSD",
+        "quasi stationary",
+        "conditioned",
+        "early stopped"
+      ]
+    },
+    {
+      "id": "discrete-local-kernels",
+      "parent_id": "discrete-sampling",
+      "title": "局部平衡核、DULA 与 MH 校正",
+      "question": "局部近似误差如何影响平稳偏差、接受率和有限时间混合？",
+      "result_match_terms": [
+        "DULA",
+        "DMALA",
+        "locally balanced",
+        "LBP",
+        "Metropolis",
+        "acceptance",
+        "transition approximation"
+      ]
+    },
+    {
+      "id": "discrete-spectral",
+      "parent_id": "discrete-sampling",
+      "title": "谱独立性、谱隙与 Glauber 混合",
+      "question": "目标结构怎样给出谱隙、弱 Poincaré 和最坏初始化混合界？",
+      "result_match_terms": [
+        "spectral",
+        "Poincare",
+        "Glauber",
+        "gap",
+        "hardcore"
+      ]
+    },
+    {
+      "id": "discrete-entropy",
+      "parent_id": "discrete-sampling",
+      "title": "熵独立性、MLSI 与熵收缩",
+      "question": "熵分解和修改型对数 Sobolev 不等式怎样控制离散混合？",
+      "result_match_terms": [
+        "entropy",
+        "entropic",
+        "MLSI",
+        "log Sobolev",
+        "down up"
+      ]
+    },
+    {
+      "id": "discrete-localization",
+      "parent_id": "discrete-sampling",
+      "title": "随机局部化、自旋玻璃与退火",
+      "question": "局部化路径和高温结构怎样构造可实现采样算法？",
+      "result_match_terms": [
+        "localization",
+        "Sherrington",
+        "SK",
+        "spin glass",
+        "annealing",
+        "disorder stable"
+      ]
+    },
+    {
+      "id": "discrete-parallel",
+      "parent_id": "discrete-sampling",
+      "title": "并行离散采样与 oracle 总工作量",
+      "question": "并行深度、处理器数和实际查询总量如何同时计费？",
+      "result_match_terms": [
+        "parallel",
+        "processor",
+        "query",
+        "oracle",
+        "total work"
+      ]
     }
   ]
 }

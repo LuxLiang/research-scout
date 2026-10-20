@@ -34,6 +34,8 @@ class ResearchField(StrictModel):
     id: str = Field(pattern=r'^[a-z0-9][a-z0-9-]*$')
     title: str = Field(min_length=1)
     question: str = Field(min_length=1)
+    parent_id: str | None = None
+    result_match_terms: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
     exclude_labels: list[str] = Field(default_factory=list)
     match_terms: list[str] = Field(default_factory=list)
@@ -57,6 +59,17 @@ class FieldRegistry(StrictModel):
     def unique_fields(self):
         if len({f.id for f in self.fields})!=len(self.fields):
             raise ValueError('Duplicate field IDs')
+        fields={f.id:f for f in self.fields}
+        for field in self.fields:
+            seen={field.id}
+            parent=field.parent_id
+            while parent is not None:
+                if parent not in fields:
+                    raise ValueError(f'Unknown parent field: {parent}')
+                if parent in seen:
+                    raise ValueError('Field hierarchy contains a cycle')
+                seen.add(parent)
+                parent=fields[parent].parent_id
         return self
 
     @classmethod
@@ -91,6 +104,43 @@ class ResultNote(StrictModel):
 def _match(terms,text):
     normalized=' '+_text(text)+' '
     return any(' '+_text(term)+' ' in normalized for term in terms if _text(term))
+
+
+def field_result_memberships(registry, records):
+    """Shared dossier/transfer membership, with result-level child filtering."""
+    fields={f.id:f for f in registry.fields}
+    memberships={}
+    def select(field):
+        if field.id in memberships:
+            return memberships[field.id]
+        parent=select(fields[field.parent_id]) if field.parent_id else None
+        papers={p.id for p in records.values() if isinstance(p,Paper) and (
+            p.id in field.paper_ids or (not set(p.labels)&set(field.exclude_labels) and
+            (set(p.labels)&set(field.labels) or _match(field.match_terms,p.title))))}
+        explicit=set(field.result_ids)|{rid for b in field.branches for rid in b.result_ids}
+        selected=set()
+        for r in records.values():
+            if not isinstance(r,Result):
+                continue
+            if r.id in explicit:
+                selected.add(r.id)
+                continue
+            if parent is not None and r.id not in parent:
+                continue
+            has_paper_selector=bool(field.paper_ids or field.labels or field.match_terms)
+            if r.paper_id not in papers and (has_paper_selector or not field.result_match_terms):
+                continue
+            text=' '.join([r.title,r.statement,r.scope.model,r.scope.objective,r.scope.guarantee])
+            if field.result_match_terms and not _match(field.result_match_terms,text):
+                continue
+            selected.add(r.id)
+        if parent is not None and not selected<=parent:
+            raise ValueError(f'Child field {field.id} includes results outside its parent')
+        memberships[field.id]=selected
+        return selected
+    for field in registry.fields:
+        select(field)
+    return memberships
 
 
 class FieldDossiers:
@@ -176,7 +226,7 @@ class FieldDossiers:
             reason='旧稿保留供查阅，新增或变化的来源尚未合并。' if stale else
                    '来源版本已对照；定理解释与承接关系仍需科学审查。')
 
-    def _build(self,field,records,notes):
+    def _build(self,field,records,notes,memberships=None):
         from research_scout.comparison.field_comparison import compare_field_results
         for pid in field.paper_ids+field.context_paper_ids:
             if not isinstance(records.get(pid),Paper):
@@ -190,6 +240,10 @@ class FieldDossiers:
         explicit_results=set(field.result_ids)|{rid for b in field.branches for rid in b.result_ids}
         results=[r for r in records.values() if isinstance(r,Result) and
                  (r.paper_id in papers or r.id in explicit_results)]
+        if memberships is not None:
+            results=[r for r in records.values() if isinstance(r,Result) and r.id in memberships[field.id]]
+            if field.parent_id or field.result_match_terms:
+                papers={r.paper_id:records[r.paper_id] for r in results}
         papers.update({r.paper_id:records[r.paper_id] for r in results})
         cards=[]
         for r in sorted(results,key=lambda r:(str(records[r.paper_id].published or ''),r.id)):
@@ -268,8 +322,9 @@ class FieldDossiers:
             raise ValueError(f'Unknown field: {field_id}')
         records={r.id:r for r in self.archive.list()}
         notes=self._notes(records)
+        memberships=field_result_memberships(registry,records)
         # Validate every selected dossier before writing any of their projections.
-        payloads=[self._build(f,records,notes) for f in fields]
+        payloads=[self._build(f,records,notes,memberships) for f in fields]
         reports=[]
         for payload in payloads:
             directory=self.workspace/'fields'/payload['field']['id']
@@ -315,14 +370,18 @@ class FieldDossiers:
     def _index(self,registry):
         lines=['# 研究领域档案','','每个领域维护问题分支、逐结果定量表、Related Work 与版本更新。',
                '同一规范结果可被多个领域引用，不复制科学记录。','',
-               '| 领域 | 结果数 | Related Work | 档案 |','| --- | --- | --- | --- |']
+               '| 领域 | 上级领域 | 结果数 | Related Work | 档案 |','| --- | --- | --- | --- | --- |']
         for f in registry.fields:
             path=self.workspace/'fields'/f.id/'latest.json'
             report=json.loads(path.read_text()) if path.exists() else None
-            lines.append(f'| {f.title} | {len(report["results"]) if report else 0} | '
+            lines.append(f'| {f.title} | {f.parent_id or "总览"} | {len(report["results"]) if report else 0} | '
                 f'{report["narrative"]["status"] if report else "待建立"} | [{f.id}]({f.id}/latest.md) |')
         (self.workspace/'fields').mkdir(exist_ok=True)
-        (self.workspace/'fields'/'README.md').write_text('\n'.join(lines)+'\n')
+        index=self.workspace/'fields'/'README.md'
+        previous=index.read_text() if index.exists() else ''
+        # Preserve manually maintained research-note sections below the generated table.
+        tail='\n## '+previous.split('\n## ',1)[1] if '\n## ' in previous else ''
+        index.write_text('\n'.join(lines)+'\n'+tail)
 
     @staticmethod
     def markdown(report):
@@ -331,6 +390,8 @@ class FieldDossiers:
         lines=['# '+f['title'],'',f['question'],'',report['policy'],'',
             f"快照：`{report['snapshot_id']}`；更新时间：{report['recorded_at']}",'',
             '## 问题分支','']
+        if f.get('parent_id'):
+            lines[4:4]=[f"上级领域：[{f['parent_id']}](../{f['parent_id']}/latest.md)", '']
         lines += [f"- **{b['title']}**：{b['question']}" for b in f['branches']]
         lines += ['- 未分支结果仍保留在比较表中；分支匹配不构成严格可比性判断。','',
                   '## Related Work','',f"状态：{n['status']}。{n['reason']}",'']

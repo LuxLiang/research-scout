@@ -63,3 +63,22 @@ def test_naive_recording_timestamp_rejected():
     data['created_at']='2026-10-18T12:00:00'
     with pytest.raises(ValidationError,match='timezone'):
         parse_record(data)
+
+
+def test_validation_plan_requires_a_bridge_and_an_executable_test():
+    from research_scout.domain.models import TransferHypothesis
+    data = dict(id='transfer-test', title='SYNTHETIC validation interface', synthetic=True,
+                mode='TECHNIQUE_FIRST', source_problem_id='source', target_problem_id='target',
+                source_mechanism_id='mechanism', maturity='VALIDATION_PLAN', shared_structures=[],
+                structural_differences=[], required_assumptions=[], missing_lemmas=['Bridge bound'],
+                likely_counterexamples=[], proposed_result='SYNTHETIC target improvement',
+                adaptation='Replace the old conditional-error bound',
+                first_falsification_test='Compute the conditional variance for a two-state chain',
+                uncertainty='SYNTHETIC unproved plan')
+    with pytest.raises(ValidationError, match='bridge statement'):
+        TransferHypothesis(**data)
+    data['bridge_statement'] = 'The one-step conditional variance is bounded by C h squared'
+    assert TransferHypothesis(**data).target_bottleneck_id is None
+    data['first_falsification_test'] = '   '
+    with pytest.raises(ValidationError, match='obligations and test'):
+        TransferHypothesis(**data)

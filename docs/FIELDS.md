@@ -23,6 +23,16 @@ selectors and problem branches. Paper labels/title terms select members;
 `result_ids` add curated members. `context_paper_ids` makes a source available to
 related-work filtering without placing all its results in that field's table.
 One canonical result may appear in several fields without being duplicated.
+
+`parent_id` organizes fields into an acyclic hierarchy; unknown parents and cycles
+are rejected. `result_match_terms` filters the result title, statement, model,
+objective and guarantee using normalized whole words. Child fields are restricted
+to parent results; their explicit result IDs cannot escape that parent. A child
+with result terms and no paper selectors selects directly from parent results,
+rather than copying all theorems from a matching paper. Unmatched results stay
+visible in the parent overview. This is navigation, not a verified taxonomy.
+The sampling registry keeps four overviews and adds eighteen subfields.
+See [the detailed taxonomy](FIELD_TAXONOMY.md).
 Branch `match_terms` match whole normalized words in result title/model/objective;
 explicit `result_ids` support curated assignment. Branches are navigation labels,
 not claims of equivalent assumptions. Unassigned results stay visible.
@@ -89,6 +99,10 @@ The sampling example enables `related_work_review` and `field_dossiers`, and set
 1. Discover, download and extract a bounded selection of papers.
 2. Update source-supported related work.
 3. Refresh field dossiers and report changed result IDs.
+4. Review potential technical transfers against the full extracted library and include
+   supported ideas, adaptation requirements and falsification tests in the weekly report.
+   The sampling profile enables `transfer_review`; this does not create canonical
+   opportunities or establish novelty. See [technical transfer review](TRANSFERS.md).
 
 A failed synthesis retains old prose with a stale marker while successful paper
 extraction and quantitative dossier updates remain saved. A failed dossier update

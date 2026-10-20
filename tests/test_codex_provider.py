@@ -223,3 +223,62 @@ def test_only_explicit_nonverification_synonym_is_normalized(status, expected):
     assert result.verification_status == expected
     if status != expected:
         assert status in result.provenance
+
+
+@pytest.mark.parametrize('diagnostic,category',[
+    ('Error: failed to initialize in-process app-server client: Read-only file system (os error 30)',
+     'READ_ONLY_STATE'),
+    ('Error: 401 Unauthorized: authentication required', 'AUTHENTICATION'),
+    ('Error: 429 Too Many Requests', 'RATE_LIMIT'),
+    ('Error: context_length_exceeded: maximum context window', 'CONTEXT_LIMIT'),
+    ('Error: error sending request: network is unreachable', 'NETWORK'),
+    ('Error: model_not_found', 'MODEL_ACCESS'),
+    ('Error: unexpected backend exit', 'UNKNOWN'),
+])
+def test_actionable_failure_categories_do_not_expose_diagnostics(diagnostic,category):
+    payload=diagnostic+'\nsecret source token=DO_NOT_PRINT'
+    with patch('research_scout.extraction.codex.subprocess.run',return_value=
+               subprocess.CompletedProcess('codex',1,stderr=payload)):
+        with pytest.raises(ConfigurationError) as exc:
+            CodexExecProvider().run_structured('Synthetic connectivity probe',{})
+    assert category in str(exc.value)
+    assert 'DO_NOT_PRINT' not in str(exc.value) and 'secret source' not in str(exc.value)
+    assert 'No API-key fallback' in str(exc.value)
+
+
+def test_nonfatal_read_only_alias_warning_does_not_mask_actual_failure():
+    diagnostic=('WARNING: could not create PATH aliases: Read-only file system (os error 30)\n'
+                'Error: 429 Too Many Requests')
+    message=CodexExecProvider._failure_message(1,diagnostic)
+    assert 'RATE_LIMIT' in message and 'READ_ONLY_STATE' not in message
+
+
+@pytest.mark.parametrize('failure',[None,ConfigurationError('READ_ONLY_STATE: runtime cannot write')])
+def test_doctor_live_probe_is_minimal_and_has_separate_readiness(tmp_path,failure):
+    from typer.testing import CliRunner
+    from research_scout.cli import app
+    from research_scout.configuration import WorkspaceConfig
+    from research_scout.storage import Archive
+    (tmp_path/'config.json').write_text(WorkspaceConfig(extraction_provider='codex').model_dump_json())
+    Archive(tmp_path/'knowledge')
+    calls=[]
+    def probe(self,prompt,schema):
+        calls.append(prompt)
+        assert schema['properties']=={'ok':{'type':'boolean'}}
+        assert 'read files' in prompt and 'Do not use tools' in prompt
+        if failure:
+            raise failure
+        return {'ok':True}
+    with patch('research_scout.extraction.codex.CodexExecProvider.run_structured',probe), \
+         patch('shutil.which',return_value='/fake/codex'), \
+         patch('subprocess.run',return_value=subprocess.CompletedProcess('login',0)):
+        runner=CliRunner()
+        normal=runner.invoke(app,['--workspace',str(tmp_path),'doctor'])
+        assert normal.exit_code==0 and not calls
+        result=runner.invoke(app,['--workspace',str(tmp_path),'doctor','--check-model'])
+    output=json.loads(result.output)
+    assert len(calls)==1 and str(tmp_path) not in calls[0]
+    assert output['llm_configured'] is True
+    assert output['model_check']['archive_contents_sent'] is False
+    assert result.exit_code==(1 if failure else 0)
+    assert output['model_check']['status']==('FAILED' if failure else 'PASSED')

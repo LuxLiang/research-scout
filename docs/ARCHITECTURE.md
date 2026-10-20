@@ -1,7 +1,9 @@
 # Architecture
 
-Scout primarily maintains research-field dossiers and source-supported related work.
-Discovery and idea formation are optional workflows. Research Harness independently owns
+Scout connects newly available techniques to older research questions. Research-field
+dossiers and source-supported related work supply context for this exploration.
+Discovery is configurable and does not require identifying a bottleneck in advance.
+Research Harness independently owns
 proposal review, research execution and verification. Its inspected interface
 accepts Markdown or text-extractable PDF via `research init <project> --mode
 proposal-review --proposal PATH`. Scout exports Markdown; it does not write
@@ -11,6 +13,24 @@ Scientific graph: Problem → limited by Bottleneck ← addressed by Mechanism �
 establishes Result. Papers and exact versions provide Evidence and attributable
 Claims. Four independent navigable projections expose the Problem Atlas,
 Bottleneck Registry, Mechanism Library and Result/Evolution Graph.
+
+The exploration path is New technique → potential use → existing problem → attempt
+→ new understanding. A problem may have unknown difficulty or several tentative
+explanations. Mechanisms expose input objects, output guarantees, reusable proof
+steps, assumptions and limitations. Retrieval uses goals, explicit mathematical
+structures and proof roles; these are leads, never logical implication proofs.
+Same-field and cross-field uses are both eligible. Field-pair rotation is a
+supplementary search strategy, not an admission gate for technique-led ideas.
+
+Transfers distinguish EXPLORATORY_LEAD, TRANSFER_HYPOTHESIS and VALIDATION_PLAN.
+A lead records an attributable connection and next reading/exploration action;
+it need not invent an obstruction or bridge lemma. A validation plan states a
+bridge proposition and an initial test. Maturity describes specificity, not
+mathematical correctness. Leads cannot create Opportunities. Failed attempts
+retain their reasons and conditions under which a new technique warrants retry.
+The incremental controller explores extracted mechanisms even when breakthrough
+analysis is inconclusive; weekly model review uses newly extracted papers as
+focus inputs against the retained library. See [technical exploration](TRANSFERS.md).
 
 Canonical UTF-8 JSON records and retained revisions are the source of truth.
 A single-writer file lock and atomic batch publication prevent partial graph

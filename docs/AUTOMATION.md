@@ -2,7 +2,7 @@
 
 `scout weekly` discovers recent arXiv literature, deduplicates scientific versions,
 selects a bounded shortlist, caches available PDFs, extracts scientific records,
-maintains result tables and related work, and writes a local report. It preserves failed and
+maintains result tables and related work, reviews potential technical transfers, and writes a local report. It preserves failed and
 overflow candidates for later runs. Selection is keyword priority, not scientific
 quality, truth or novelty assessment. Per-run and per-paper limits are explicit.
 
@@ -17,7 +17,7 @@ quality, truth or novelty assessment. Per-run and per-paper limits are explicit.
 - general stochastic sampling / MCMC.
 
 Only matched topic labels are attached to each paper. The default run examines
-an overlapping eight-day discovery window and processes at most five papers.
+an overlapping eight-day discovery window and processes at most twenty papers.
 Queries return at most twenty candidates each. Previously published extraction
 stages are reused. PDF, model or validation failures stay visible and retryable;
 abstract-only metadata never becomes full-text analysis by fallback. Retries reuse cached
@@ -75,6 +75,25 @@ quotations fail. Unique verbatim quotations remain supported, with no fuzzy matc
 Extraction uses a compact first pass; source attribution does not independently
 verify that a selected passage proves a scientific statement.
 `scout doctor` checks backend availability/login, without making a model call.
+Use `scout doctor --check-model` for a minimal live structured model probe. This
+sends only a fixed connectivity question, never archive contents, and reports
+`model_check.status` separately from `llm_configured`; a failed probe exits nonzero.
+Saved login alone does not establish that model execution can start.
+
+In an agent execution sandbox that mounts `~/.codex` read-only, the CLI can report
+an existing login but fail before inference with `Read-only file system (os error
+30)`. Codex needs to initialize its runtime state; use an authorized execution
+environment permitting those state writes. Scout does not relocate or duplicate
+the saved credentials to work around that restriction. The supported state
+locations are documented in [OpenAI's environment-variable reference](https://learn.chatgpt.com/docs/config-file/environment-variables).
+The weekly scheduler outside that restricted execution context uses the existing
+login and configuration normally. A live probe is still required to establish
+that a particular scheduled-job environment works.
+
+Codex process failures now report fixed categories (`READ_ONLY_STATE`,
+`AUTHENTICATION`, `RATE_LIMIT`, `CONTEXT_LIMIT`, `NETWORK`, `MODEL_ACCESS` or
+`UNKNOWN`) without printing raw CLI diagnostics, source text or credentials.
+Final error diagnostics take precedence over nonfatal startup warnings.
 
 Saved ChatGPT authentication can expire and usage limits can interrupt runs;
 those are explicit retry failures. Do not put authentication files in GitHub.
@@ -113,8 +132,18 @@ is the persistent report and knowledge archive.
 
 The sampling profile enables [related work](RELATED_WORK.md) followed by
 [field dossiers](FIELDS.md). It disables `automatic_discovery` and
-`theory_gap_review`: routine ingestion does not generate breakthrough/transfer
-opportunities or gap proposals. Reports link to the field index and include
+`theory_gap_review`: routine ingestion does not create canonical breakthrough/transfer
+opportunities or gap proposals. `transfer_review: true` separately adds up to three
+source-grounded technical transfer ideas to the weekly report, using all extracted
+papers and focusing on newly read papers. Each idea records its source mechanism,
+target baseline, adaptation, conditional gain, assumptions, missing lemmas and first
+falsification test. Zero candidates is valid; failures are explicit. These report
+candidates remain unverified, with novelty UNDETERMINED and no external prior-art
+search. Retained opportunities, reviews and failed transfers are included as context.
+It also schedules up to twelve directed cross-field pairs per run, prioritizing
+least-reviewed combinations and different parent families. All attempted pairs
+require a candidate or a specific obstruction; past attempts drive rotation.
+See [technical transfer review](TRANSFERS.md). Reports link to the field index and include
 added, changed and removed result IDs for each maintained field.
 
 A failed narrative update is reported explicitly; current result tables can still

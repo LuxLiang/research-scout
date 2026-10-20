@@ -348,3 +348,41 @@ def test_interrupted_publication_reuses_immutable_retained_snapshot(tmp_path,mon
     report=worker.update('sampling')[0]
     assert report['recorded_at']==saved['recorded_at']
     assert retained.read_bytes()==before
+
+
+def test_hierarchical_result_filtering_preserves_parent_and_source_records(tmp_path):
+    archive,registry=setup(tmp_path)
+    registry['fields'] += [dict(id='exact-child',parent_id='sampling',title='Exact child',
+        question='Exact test question',result_match_terms=['Exact']),
+        dict(id='mc-child',parent_id='sampling',title='Estimated child',
+        question='Estimated test question',result_match_terms=['Estimated'])]
+    (tmp_path/'fields.json').write_text(json.dumps(registry))
+    before={r.id:r.model_dump() for r in archive.list()}
+    root=tmp_path/'fields'
+    root.mkdir()
+    (root/'README.md').write_text('# Old index\n\n## Research notes\n\n[Retained](../notes.md)\n')
+    reports={r['field']['id']:r for r in FieldDossiers(archive,tmp_path).update()}
+    assert len(reports['sampling']['results'])==4
+    assert {r['result_id'] for r in reports['exact-child']['results']}=={'r1a','r2a'}
+    assert {r['result_id'] for r in reports['mc-child']['results']}=={'r1b','r2b'}
+    assert {r.id:r.model_dump() for r in archive.list()}==before
+    assert '../sampling/latest.md' in (root/'exact-child/latest.md').read_text()
+    assert '[Retained](../notes.md)' in (root/'README.md').read_text()
+
+
+@pytest.mark.parametrize('parents',[{'a':'missing'}, {'a':'a'}, {'a':'b','b':'a'}])
+def test_invalid_field_hierarchy_is_rejected(parents):
+    from research_scout.workflows.fields import FieldRegistry
+    with pytest.raises(ValueError):
+        FieldRegistry.model_validate(dict(fields=[dict(id=k,parent_id=v,title=k,question='Test')
+                                                  for k,v in parents.items()]))
+
+
+def test_child_cannot_import_explicit_results_outside_parent(tmp_path):
+    archive,registry=setup(tmp_path)
+    registry['fields'].append(dict(id='invalid-child',parent_id='cross-domain',title='Test child',
+        question='Test',result_ids=['r2a']))
+    (tmp_path/'fields.json').write_text(json.dumps(registry))
+    with pytest.raises(ValueError,match='outside its parent'):
+        FieldDossiers(archive,tmp_path).update()
+    assert not (tmp_path/'fields/invalid-child/latest.json').exists()

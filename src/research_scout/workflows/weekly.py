@@ -28,7 +28,7 @@ class WeeklyProfile(StrictModel):
     priority_terms: list[str] = Field(default_factory=list)
     topic_terms: dict[str,list[str]] = Field(default_factory=dict)
     max_results_per_query: int = Field(default=20, ge=1, le=100)
-    max_papers: int = Field(default=5, ge=1, le=20)
+    max_papers: int = Field(default=20, ge=1, le=20)
     lookback_days: int = Field(default=8, ge=1, le=3650)
     request_interval_seconds: float = Field(default=3.1, ge=0, le=60)
     timezone: str = 'Asia/Shanghai'
@@ -37,6 +37,9 @@ class WeeklyProfile(StrictModel):
     related_work_review: bool = False
     field_dossiers: bool = False
     automatic_discovery: bool = False
+    transfer_review: bool = False
+    max_transfer_candidates: int = Field(default=3, ge=1, le=3)
+    max_transfer_field_pairs: int = Field(default=12, ge=1, le=100)
     max_gap_candidates: int = Field(default=3, ge=1, le=3)
 
     @classmethod
@@ -206,6 +209,16 @@ class WeeklyCollector:
             except Exception as exc:
                 lineage_ready = False
                 errors.append({'stage':'field_dossiers','error':f'{type(exc).__name__}: {exc}'})
+        transfer_review = None
+        if profile.transfer_review and profile.extract:
+            try:
+                from research_scout.workflows.transfer_review import TransferReview
+                transfer_review = TransferReview(self.archive,self.workspace,
+                    self.ingestor.cache_dir,self.provider).run(profile.max_transfer_candidates,
+                        focus_paper_ids=[a['paper_id'] for a in articles if a['status']=='EXTRACTED'],
+                        max_field_pairs=profile.max_transfer_field_pairs)
+            except Exception as exc:
+                errors.append({'stage':'transfer_review','error':f'{type(exc).__name__}: {exc}'})
         gap_review = None
         if profile.theory_gap_review and profile.extract and lineage_ready:
             try:
@@ -226,6 +239,14 @@ class WeeklyCollector:
         if related_work is not None:
             report['related_work_review'] = {'report':'related-work/latest.md',
                                              'track_count':len(related_work['sections'])}
+        if transfer_review is not None:
+            report['transfer_review'] = {'candidate_count':len(transfer_review['ideas']),
+                'report':'transfers/latest.md','novelty':'UNDETERMINED',
+                'external_prior_art_searched':False,'ideas':transfer_review['ideas'],
+                'excluded_ideas':transfer_review['excluded_ideas'],
+                'limitations':transfer_review['limitations'],
+                'field_pair_reviews':transfer_review.get('field_pair_reviews',[]),
+                'technique_reviews':transfer_review.get('technique_reviews',[])}
         if gap_review is not None:
             query_errors = sum(len(c.get('external_errors',[])) for c in gap_review['cards'])
             report['theory_gap_review'] = {'candidate_count':len(gap_review['cards']),
@@ -273,6 +294,36 @@ class WeeklyCollector:
         if report.get('related_work_review'):
             lines += ['## 发展脉络与 Related Work','',
                 '[查看问题主线、跨论文比较和证据关系](related-work/latest.md)','']
+        if report.get('transfer_review'):
+            review=report['transfer_review']
+            lines += ['## 新技术激活老问题','',
+                f"本轮 {review['candidate_count']} 个未验证候选；未做外部先例检索，新颖性未确定。",
+                f"逐项审查 {len(review.get('technique_reviews', []))} 项新技术；领域轮转作为补充。",
+                f"本轮记录 {len(review['field_pair_reviews'])} 个有方向的跨领域尝试。",
+                '[查看迁移改造、假设、证明义务与原文证据](transfers/latest.md)','']
+            for idea in review['ideas']:
+                lines += [f"### {idea['title']}",'',
+                    f"- 来源：{idea['source_result_id']}；机制：{idea['source_mechanism_id']}",
+                    f"- 目标：{idea['target_problem_id']}",
+                    f"- 探索阶段：{idea.get('maturity', 'TRANSFER_HYPOTHESIS')}",
+                    f"- 领域方向：{idea.get('source_field_id') or '未归类'} → {idea.get('target_field_id') or '未归类'}",
+                    f"- 迁移改造：{idea['adaptation']}",
+                    f"- 潜在收益：{idea['expected_gain']}",
+                    f"- 必要假设：{'；'.join(idea['required_assumptions'])}",
+                    f"- 缺失引理：{'；'.join(idea['missing_lemmas'])}",
+                    f"- 首个证伪测试：{idea['first_falsification_test'] or '待探索明确'}",
+                    f"- 下一步：{idea.get('next_action') or idea['first_falsification_test'] or '继续阅读并明确接法'}",'']
+                if idea.get('bridge_statement'):
+                    lines += [f"- 桥接命题：{idea['bridge_statement']}",'']
+                if idea.get('revisit_when'):
+                    lines += [f"- 重新考虑条件：{'；'.join(idea['revisit_when'])}",'']
+            if not review['ideas']:
+                lines += ['本轮没有足够支持的迁移候选。','']
+            for attempt in review.get('technique_reviews', []):
+                lines += [f"- 技术审查 {attempt['source_mechanism_id']}：{attempt['outcome']}；{attempt['rationale']}"]
+            for limitation in review['limitations']:
+                lines.append('- 覆盖限制：'+limitation)
+            lines += ['']
         if report.get('theory_gap_review'):
             lines += ['## 理论 gap 候选','',
                 f"本轮 {report['theory_gap_review']['candidate_count']} 个待验证假说；新颖性未确定。",

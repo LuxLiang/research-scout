@@ -214,7 +214,9 @@ def rebuild(ctx: typer.Context):
 
 @app.command()
 @guarded
-def doctor(ctx: typer.Context):
+def doctor(ctx: typer.Context,
+           check_model: Annotated[bool,typer.Option('--check-model',
+               help='Make a minimal live model call without transmitting archive contents.')] = False):
     store=archive(ctx)
     errors=store.validate()
     config=load_config(ctx.obj)
@@ -226,11 +228,29 @@ def doctor(ctx: typer.Context):
                                                  timeout=15).returncode==0)
     else:
         ready=bool(os.environ.get(config.llm_api_key_env) and (config.llm_model or os.environ.get('SCOUT_MODEL')))
+    model_check={'status':'NOT_REQUESTED'}
+    if check_model:
+        if config.extraction_provider != 'codex':
+            raise ValueError('--check-model currently requires the Codex structured backend')
+        from research_scout.configuration import extraction_provider
+        try:
+            response=extraction_provider(config).run_structured(
+                'Return {"ok":true}. Do not use tools, browse, read files or modify anything.',
+                {'type':'object','additionalProperties':False,
+                 'properties':{'ok':{'type':'boolean'}},'required':['ok']})
+            if response != {'ok':True} or type(response.get('ok')) is not bool:
+                raise ValueError('Model connectivity probe returned an invalid response')
+            model_check={'status':'PASSED','archive_contents_sent':False}
+        except (RuntimeError,ValueError) as exc:
+            model_check={'status':'FAILED','archive_contents_sent':False,'error':str(exc)}
     emit({'workspace':ctx.obj,'records':len(store.list()),'errors':errors,
           'offline_ready':not errors,'extraction_provider':config.extraction_provider,'llm_configured':ready,
+          'model_check':model_check,
           'scientific_correctness_verified':False})
     if errors:
         raise typer.Exit(2)
+    if model_check['status']=='FAILED':
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -447,6 +467,27 @@ def gaps(ctx: typer.Context,
         result=TheoryGapReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
                               extraction_provider(config)).run(max_candidates,refresh=refresh,
                                                                external=not local_only)
+    emit(result)
+
+
+@app.command()
+@guarded
+def transfer_review(ctx: typer.Context,
+                    max_candidates: Annotated[int,typer.Option('--max-candidates',min=1,max=3)] = 3,
+                    max_field_pairs: Annotated[int,typer.Option('--max-field-pairs',min=1,max=100)] = 12,
+                    focus_paper: Annotated[list[str] | None,typer.Option('--focus-paper',
+                        help='Explore techniques from this extracted paper; repeat for multiple papers.')] = None,
+                    refresh: Annotated[bool,typer.Option('--refresh')] = False):
+    """Explore new techniques against older questions, including unknown difficulty."""
+    from research_scout.configuration import extraction_provider
+    from research_scout.workflows.transfer_review import TransferReview
+    from research_scout.workflows.weekly import _run_lock
+    config=load_config(ctx.obj)
+    with _run_lock(ctx.obj):
+        result=TransferReview(archive(ctx),ctx.obj,cache_path(ctx.obj,config),
+                              extraction_provider(config)).run(max_candidates,refresh=refresh,
+                                                               focus_paper_ids=focus_paper,
+                                                               max_field_pairs=max_field_pairs)
     emit(result)
 
 

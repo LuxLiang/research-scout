@@ -27,6 +27,35 @@ class CodexExecProvider:
         self.last_raw_output: dict | None = None
 
     @staticmethod
+    def _failure_message(returncode: int, stderr: str | None) -> str:
+        """Classify known failures without echoing source text or credentials."""
+        lines=(stderr or '').casefold().splitlines()
+        errors=[line for line in lines if re.match(r'^(?:error:|\d{4}-\d\d-\d\d\S*\s+error\b)',line)]
+        diagnostic='\n'.join(errors or [line for line in lines
+            if not line.startswith('warning:') and ' warn ' not in line])
+        if 'read-only file system' in diagnostic or 'readonly filesystem' in diagnostic:
+            reason=('READ_ONLY_STATE: the Codex runtime cannot initialize in a read-only '
+                    'state directory. Run the job in an execution environment that permits '
+                    'Codex to write its configured state directory; logging in again will '
+                    'not repair filesystem permissions.')
+        elif any(s in diagnostic for s in ('401 unauthorized','not logged in','authentication required',
+                                           'refresh token has expired','token_expired')):
+            reason='AUTHENTICATION: check `codex login status` and renew the saved login if needed.'
+        elif any(s in diagnostic for s in ('429 too many requests','usage limit','rate limit exceeded')):
+            reason='RATE_LIMIT: the service rejected the request because of a usage or request limit.'
+        elif any(s in diagnostic for s in ('context window','context length','context_length_exceeded')):
+            reason='CONTEXT_LIMIT: the supplied input exceeds the configured model context limit.'
+        elif any(s in diagnostic for s in ('connection refused','failed to connect','dns error',
+                                           'error sending request','network is unreachable')):
+            reason='NETWORK: check connectivity from the job environment to the configured model service.'
+        elif any(s in diagnostic for s in ('model is not supported','model not found',
+                                           'model_not_found','does not have access to model')):
+            reason='MODEL_ACCESS: check the configured model and account access.'
+        else:
+            reason='UNKNOWN: check `codex login status`, runtime write permissions and configured model access.'
+        return f'Codex extraction failed (exit {returncode}); {reason} No API-key fallback was attempted.'
+
+    @staticmethod
     def _normalize_unverified_status(records: list[Record]) -> None:
         """Map one explicit non-verification synonym; never accept verified output."""
         for record in records:
@@ -124,10 +153,7 @@ class CodexExecProvider:
                 raise ConfigurationError("Unable to start Codex CLI; check executable permissions") from None
             if result.returncode:
                 # CLI diagnostics may contain source passages or credentials. Do not echo them.
-                raise ConfigurationError(
-                    f"Codex extraction failed (exit {result.returncode}); check `codex login status` "
-                    "and your configured model access. No API-key fallback was attempted."
-                )
+                raise ConfigurationError(self._failure_message(result.returncode,result.stderr))
             try:
                 raw = json.loads(output_path.read_text(encoding="utf-8"))
                 if not isinstance(raw, dict):
@@ -165,6 +191,11 @@ class CodexExecProvider:
             "do not guess. When supported, record technical obstructions as HYPOTHESIZED_BOTTLENECK "
             "records and link them to the source problem/mechanism. An unhandled regime is not "
             "automatically an author-endorsed open question or a global literature gap. "
+            "Unknown difficulty is valid: leave bottleneck_ids empty when the source does not identify "
+            "an obstruction. Preserve source-stated open_questions and explicitly conjectural "
+            "difficulty_hypotheses when supported. For mechanisms extract attributable input_objects, "
+            "output_guarantees and reusable_steps with their necessary_assumptions and limitations, "
+            "so later exploration can look for uses without presupposing a known bottleneck. "
             "The complete source is provided as ordered source_segments, each an exact contiguous "
             "slice. For Evidence, select the relevant supplied segment:N locator and set quotation "
             "to null; the program copies that exact segment and its verified character span. "

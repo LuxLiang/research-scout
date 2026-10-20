@@ -31,6 +31,8 @@ class OpportunityPortfolio:
         transfer = self.archive.get(transfer_id)
         if not isinstance(transfer, TransferHypothesis):
             raise TypeError("Opportunity creation requires a TransferHypothesis")
+        if transfer.maturity == "EXPLORATORY_LEAD":
+            raise ValueError("Exploratory leads need a concrete transfer hypothesis before opportunity creation")
         identifier = stable_id("opportunity", transfer.id)
         try:
             return self._get(identifier)
@@ -56,14 +58,15 @@ class OpportunityPortfolio:
                   else "Created from an unproved structural transfer hypothesis")
         opportunity = Opportunity(
             id=identifier, title=f"Investigate {problem.title} via {transfer.source_mechanism_id}",
-            target_problem_id=problem.id, bottleneck_ids=[transfer.target_bottleneck_id],
+            target_problem_id=problem.id,
+            bottleneck_ids=[transfer.target_bottleneck_id] if transfer.target_bottleneck_id else [],
             mechanism_ids=[transfer.source_mechanism_id], transfer_id=transfer.id,
             paper_ids=sorted(paper_ids), event_ids=[e.id for e in sorted(events, key=lambda e: (e.scientific_date, e.id))],
             contribution=transfer.proposed_result, closest_result_ids=result_ids,
             assumptions=transfer.required_assumptions, proof_obligations=transfer.missing_lemmas,
             counterexamples=transfer.likely_counterexamples, first_validation=transfer.first_falsification_test,
-            significance=(f"Potential progress on {problem.statement} by addressing "
-                          f"{transfer.target_bottleneck_id}. Significance requires domain review."),
+            significance=(f"Potential progress on {problem.statement}. "
+                          "Significance and the difficulty of this problem require domain review."),
             novelty_assessment=audit.assessment + " " + audit.uncertainty,
             uncertainty=transfer.uncertainty, status=status,
             history=[{"timestamp": now().isoformat(), "from": None, "to": status.value,

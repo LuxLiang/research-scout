@@ -276,6 +276,8 @@ class Archive:
                 if record.kind == "transfer" and old.outcome == "FAILED":
                     if record.outcome != "FAILED" or record.failure_reason != old.failure_reason:
                         raise IntegrityError("failed transfer reasons are retained; append a new hypothesis")
+                    if not set(old.revisit_when).issubset(record.revisit_when):
+                        raise IntegrityError("failed transfer revisit conditions must be retained")
                 if record.revision != old.revision:
                     raise ConflictError(f"stale revision of {record.id}: expected {old.revision}")
                 record = parse_record({**record.model_dump(mode="json"),
@@ -361,6 +363,15 @@ class Archive:
 
     def _scientific_gates(self, record, records):
         evidence = [records[identifier] for identifier in record.evidence_ids]
+        if record.kind == "transfer" and record.maturity == "EXPLORATORY_LEAD":
+            if record.outcome == "SUPPORTED" or record.assessment_status in {
+                AssessmentStatus.SUPPORTED_BY_SOURCE, AssessmentStatus.INDEPENDENTLY_REVIEWED,
+            }:
+                raise IntegrityError("exploratory leads remain unproved; develop the transfer first")
+        if record.kind == "opportunity" and record.transfer_id:
+            transfer = records[record.transfer_id]
+            if transfer.maturity == "EXPLORATORY_LEAD":
+                raise IntegrityError("exploratory leads cannot become opportunities; develop the transfer first")
         if record.kind in {"claim", "result", "event", "relation", "resolution_assessment",
                            "breakthrough"} and record.assessment_status in {
             AssessmentStatus.SUPPORTED_BY_SOURCE, AssessmentStatus.INDEPENDENTLY_REVIEWED,

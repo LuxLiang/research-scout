@@ -252,6 +252,8 @@ class PreciseProblem(Record):
     known_result_ids: list[str] = Field(default_factory=list)
     unresolved_scope: list[str] = Field(default_factory=list)
     structures: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    difficulty_hypotheses: list[str] = Field(default_factory=list)
     # Current status is computed from immutable events, never a mutable "solved" flag.
 
 
@@ -305,6 +307,9 @@ class Mechanism(Record):
     variant_ids: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     attempts: list[Attempt] = Field(default_factory=list)
+    input_objects: list[str] = Field(default_factory=list)
+    output_guarantees: list[str] = Field(default_factory=list)
+    reusable_steps: list[str] = Field(default_factory=list)
 
 
 class MechanismVariant(Record):
@@ -457,11 +462,17 @@ class TransferHypothesis(Record):
     kind: Literal["transfer"] = "transfer"
     mode: TransferMode
     source_problem_id: str
-    source_bottleneck_id: str
+    source_bottleneck_id: str | None = None
     source_mechanism_id: str
     breakthrough_id: str | None = None
     target_problem_id: str
-    target_bottleneck_id: str
+    target_bottleneck_id: str | None = None
+    maturity: Literal["EXPLORATORY_LEAD", "TRANSFER_HYPOTHESIS", "VALIDATION_PLAN"] = "TRANSFER_HYPOTHESIS"
+    match_basis: list[str] = Field(default_factory=list)
+    adaptation: str = ""
+    bridge_statement: str = ""
+    next_action: str = ""
+    revisit_when: list[str] = Field(default_factory=list)
     shared_structures: list[str]
     structural_differences: list[str]
     required_assumptions: list[str]
@@ -479,6 +490,17 @@ class TransferHypothesis(Record):
     def failed_reason(self):
         if self.outcome == "FAILED" and not self.failure_reason:
             raise ValueError("failed transfers must retain their reason")
+        if self.maturity == "EXPLORATORY_LEAD":
+            if not self.match_basis or not all(x.strip() for x in self.match_basis) or not self.next_action.strip():
+                raise ValueError("exploratory leads require a match basis and next action")
+            if self.outcome == "SUPPORTED":
+                raise ValueError("exploratory leads cannot be supported transfers")
+        if self.maturity == "VALIDATION_PLAN" and (
+            not self.adaptation.strip() or not self.bridge_statement.strip()
+            or not self.missing_lemmas or not all(x.strip() for x in self.missing_lemmas)
+            or not self.first_falsification_test.strip()
+        ):
+            raise ValueError("validation plans require adaptation, bridge statement, obligations and test")
         return self
 
 

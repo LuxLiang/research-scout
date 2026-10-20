@@ -22,7 +22,7 @@
     "Markov chain Monte Carlo"
   ],
   "max_results_per_query": 20,
-  "max_papers": 5,
+  "max_papers": 20,
   "lookback_days": 8,
   "request_interval_seconds": 3.1,
   "timezone": "Asia/Shanghai",
@@ -51,5 +51,8 @@
   "max_gap_candidates": 3,
   "related_work_review": true,
   "field_dossiers": true,
-  "automatic_discovery": false
+  "automatic_discovery": false,
+  "transfer_review": true,
+  "max_transfer_candidates": 3,
+  "max_transfer_field_pairs": 12
 }

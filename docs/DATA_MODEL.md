@@ -15,6 +15,10 @@ Scope pins model, objective, assumptions, quantifiers, metric, guarantee and
 unresolved settings. Text resemblance never proves assumption implication.
 Bottleneck is reusable and hypothesized by default; established status requires
 evidence. MechanismFamily → Mechanism → Variant; Application is a separate record.
+PreciseProblem may have no bottleneck: optional `open_questions` and
+`difficulty_hypotheses` preserve unknowns and tentative explanations without
+asserting an established obstruction. Mechanism optionally records `input_objects`,
+`output_guarantees` and `reusable_steps`; assumptions and limitations remain attached.
 Variants state an exact technical difference; use in a new field is an application.
 Result distinguishes theorem, algorithmic guarantee and empirical observation.
 
@@ -26,6 +30,16 @@ TransferHypothesis records assumptions, missing lemmas, differences, counterexam
 prior art and falsification test; failed outcomes retain reasons. Opportunities
 retain lifecycle history and six separate evidence-qualified ranking dimensions.
 EntityChange records merges/splits without rewriting historical event IDs.
+
+Transfer bottleneck references are optional. `maturity` distinguishes an
+`EXPLORATORY_LEAD` (requires `match_basis` and `next_action`), a
+`TRANSFER_HYPOTHESIS`, and a `VALIDATION_PLAN` (requires `adaptation`,
+`bridge_statement`, proof obligations and a falsification test). Existing transfers
+default to TRANSFER_HYPOTHESIS for backward compatibility. `revisit_when` retains
+conditions for reconsideration after failure. No maturity value certifies a proof.
+Exploratory leads cannot be supported transfers or linked to Opportunities,
+including through raw canonical imports. Missing bottlenecks stay null and are
+never replaced with placeholder scientific records.
 
 Scope dimensions must be nonblank. Missing quantifiers can be retained during
 incomplete extraction but prevent full-resolution assessment. Recording and
